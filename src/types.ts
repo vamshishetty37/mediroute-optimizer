@@ -33,6 +33,12 @@ export interface RouteStep {
   distanceFromPrevious: number;
 }
 
+export interface BruteForceMetric {
+  distance?: number;
+  value?: number;
+  time: number;
+}
+
 export interface TSPResult {
   route: RouteStep[];
   totalDistance: number;
@@ -41,6 +47,7 @@ export interface TSPResult {
   twoOptTime: number;
   improvement: number;
   swaps: number;
+  bruteForce?: BruteForceMetric;
 }
 
 export interface KnapsackResult {
@@ -49,6 +56,7 @@ export interface KnapsackResult {
   totalWeight: number;
   utilization: number;
   computeTime: number;
+  bruteForce?: BruteForceMetric;
 }
 
 export interface OptimizationResult {

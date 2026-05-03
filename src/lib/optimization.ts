@@ -75,7 +75,60 @@ export const refineTSP2Opt = (route: Hospital[]): { route: Hospital[]; swaps: nu
   return { route: bestRoute, swaps };
 };
 
-export const solveTSP = (hospitals: Hospital[], depot: Hospital): TSPResult => {
+export interface BruteForceResult {
+  distance?: number;
+  value?: number;
+  time: number;
+}
+
+// TSP: Brute Force (O(n!))
+export const solveTSPBruteForce = (hospitals: Hospital[], startNode: Hospital): { route: Hospital[]; totalDistance: number; time: number } => {
+  const startTime = performance.now();
+  const others = hospitals.filter(h => h.id !== startNode.id);
+  
+  if (others.length > 8) {
+    // Safety break: don't brute force more than 8 others (9 total)
+    return { route: [], totalDistance: 0, time: 0 };
+  }
+
+  let bestRoute: Hospital[] = [];
+  let minDistance = Infinity;
+
+  const calculateTotalDist = (r: Hospital[]) => {
+    let d = 0;
+    for (let i = 0; i < r.length - 1; i++) {
+      d += getDistance(r[i].lat, r[i].lng, r[i+1].lat, r[i+1].lng);
+    }
+    return d;
+  };
+
+  const permute = (arr: Hospital[], m: Hospital[] = []) => {
+    if (arr.length === 0) {
+      const fullRoute = [startNode, ...m];
+      const dist = calculateTotalDist(fullRoute);
+      if (dist < minDistance) {
+        minDistance = dist;
+        bestRoute = fullRoute;
+      }
+    } else {
+      for (let i = 0; i < arr.length; i++) {
+        const curr = arr.slice();
+        const next = curr.splice(i, 1);
+        permute(curr.slice(), m.concat(next));
+      }
+    }
+  };
+
+  permute(others);
+  
+  return { 
+    route: bestRoute, 
+    totalDistance: minDistance, 
+    time: performance.now() - startTime 
+  };
+};
+
+export const solveTSP = (hospitals: Hospital[], depot: Hospital, runBruteForce: boolean = false): TSPResult & { bruteForce?: BruteForceResult } => {
   const startTime = performance.now();
   
   // NN
@@ -102,7 +155,7 @@ export const solveTSP = (hospitals: Hospital[], depot: Hospital): TSPResult => {
     steps.push({ hospital: finalRoute[i], distanceFromPrevious: dist });
   }
 
-  return {
+  const result: TSPResult & { bruteForce?: BruteForceResult } = {
     route: steps,
     totalDistance: dFinal,
     nnDistance: dNN,
@@ -111,10 +164,49 @@ export const solveTSP = (hospitals: Hospital[], depot: Hospital): TSPResult => {
     improvement: dNN > 0 ? ((dNN - dFinal) / dNN) * 100 : 0,
     swaps
   };
+
+  if (runBruteForce && hospitals.length <= 9) {
+    const bf = solveTSPBruteForce(hospitals, depot);
+    result.bruteForce = {
+      distance: bf.totalDistance,
+      time: bf.time
+    };
+  }
+
+  return result;
+};
+
+// 0/1 Knapsack: Brute Force (Recursive O(2^n))
+export const solveKnapsackRecursive = (items: Supply[], capacity: number): { value: number; weight: number; time: number } => {
+  const startTime = performance.now();
+  
+  if (items.length > 20) {
+    return { value: 0, weight: 0, time: 0 };
+  }
+
+  const solve = (idx: number, currentCap: number): { v: number; w: number } => {
+    if (idx < 0 || currentCap === 0) return { v: 0, w: 0 };
+    
+    if (items[idx].weight > currentCap) {
+      return solve(idx - 1, currentCap);
+    }
+    
+    const include = solve(idx - 1, currentCap - items[idx].weight);
+    const exclude = solve(idx - 1, currentCap);
+    
+    const valInclude = include.v + items[idx].value;
+    if (valInclude > exclude.v) {
+      return { v: valInclude, w: include.w + items[idx].weight };
+    }
+    return exclude;
+  };
+
+  const result = solve(items.length - 1, capacity);
+  return { value: result.v, weight: result.w, time: performance.now() - startTime };
 };
 
 // 0/1 Knapsack: Dynamic Programming
-export const solveKnapsack = (items: Supply[], capacity: number): KnapsackResult => {
+export const solveKnapsack = (items: Supply[], capacity: number, runBruteForce: boolean = false): KnapsackResult & { bruteForce?: BruteForceResult } => {
   const startTime = performance.now();
   const n = items.length;
   const dp: number[][] = Array.from({ length: n + 1 }, () => Array(capacity + 1).fill(0));
@@ -144,11 +236,21 @@ export const solveKnapsack = (items: Supply[], capacity: number): KnapsackResult
   const totalValue = dp[n][capacity];
   const totalWeight = packedItems.reduce((sum, item) => sum + item.weight, 0);
 
-  return {
+  const result: KnapsackResult & { bruteForce?: BruteForceResult } = {
     packedItems: packedItems.reverse(),
     totalValue,
     totalWeight,
     utilization: capacity > 0 ? (totalWeight / capacity) * 100 : 0,
     computeTime: performance.now() - startTime
   };
+
+  if (runBruteForce && items.length <= 20) {
+    const bf = solveKnapsackRecursive(items, capacity);
+    result.bruteForce = {
+      value: bf.value,
+      time: bf.time
+    };
+  }
+
+  return result;
 };

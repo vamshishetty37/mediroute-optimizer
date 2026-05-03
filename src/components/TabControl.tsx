@@ -40,15 +40,15 @@ export default function TabControl({
   ] as const;
 
   return (
-    <div className="w-[450px] bg-white border-l border-slate-200 flex flex-col overflow-hidden z-10">
+    <div className="w-[450px] bg-white border-l border-slate-300 flex flex-col overflow-hidden z-10">
       {/* Tab Headers */}
-      <div className="flex border-b border-slate-200 divide-x divide-slate-100">
+      <div className="flex border-b border-slate-300 divide-x divide-slate-200">
         {tabs.map(t => (
           <button
             key={t.id}
             onClick={() => setActiveTab(t.id)}
             className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors relative ${
-              activeTab === t.id ? 'bg-slate-900 text-white' : 'hover:bg-slate-50 text-slate-400'
+              activeTab === t.id ? 'bg-slate-900 text-white' : 'hover:bg-slate-50 text-slate-500'
             }`}
           >
             <t.icon size={18} />
@@ -80,11 +80,11 @@ export default function TabControl({
 }
 
 function TSPTab({ result }: { result: OptimizationResult }) {
-  if (!result.tsp) return <div className="p-8 text-center text-slate-400">Run plan to see TSP output</div>;
+  if (!result.tsp) return <div className="p-8 text-center text-slate-600 italic">Run plan to see TSP output</div>;
 
   return (
-    <div className="flex flex-col h-full divide-y divide-slate-100">
-      <div className="grid grid-cols-2 gap-px bg-slate-100 border-b border-slate-100">
+    <div className="flex flex-col h-full divide-y divide-slate-200">
+      <div className="grid grid-cols-2 gap-px bg-slate-200 border-b border-slate-200">
         {[
           { label: 'NN DISTANCE', value: `${result.tsp.nnDistance.toFixed(3)} km` },
           { label: 'NN TIME', value: `${result.tsp.nnTime.toFixed(2)} ms` },
@@ -102,11 +102,23 @@ function TSPTab({ result }: { result: OptimizationResult }) {
         ))}
       </div>
 
-      <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+      <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
         <div>
-          <div className="scannable-header">BRUTE FORCE (EXACT)</div>
-          <div className="text-[11px] font-mono text-slate-500">
-            Dist: {(result.tsp.totalDistance * 0.94).toFixed(3)} km  Time: 29.93 ms
+          <div className="scannable-header italic !text-orange-600">BRUTE FORCE (EXACT)</div>
+          <div className="text-[11px] font-mono text-slate-700">
+            {result.tsp.bruteForce ? (
+              <>
+                Dist: <span className="font-bold text-slate-900">{result.tsp.bruteForce.distance?.toFixed(3)} km</span> · 
+                Time: <span className="font-bold text-slate-900">{result.tsp.bruteForce.time.toFixed(2)} ms</span>
+                <div className="mt-0.5 text-[10px]">
+                  Optimal Match: <span className={Math.abs(result.tsp.totalDistance - (result.tsp.bruteForce.distance || 0)) < 0.001 ? 'text-emerald-600 font-bold' : 'text-orange-600 font-bold'}>
+                    {Math.abs(result.tsp.totalDistance - (result.tsp.bruteForce.distance || 0)) < 0.001 ? 'YES' : 'NO (2-OPT GAP)'}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <span className="italic">Brute-force disabled or too many nodes</span>
+            )}
           </div>
         </div>
         <button 
@@ -144,11 +156,11 @@ function TSPTab({ result }: { result: OptimizationResult }) {
 }
 
 function KnapsackTab({ result }: { result: OptimizationResult }) {
-  if (!result.knapsack) return <div className="p-8 text-center text-slate-400">Run plan to see Knapsack output</div>;
+  if (!result.knapsack) return <div className="p-8 text-center text-slate-600 italic">Run plan to see Knapsack output</div>;
 
   return (
-    <div className="flex flex-col h-full divide-y divide-slate-100">
-      <div className="grid grid-cols-2 gap-px bg-slate-100 border-b border-slate-100">
+    <div className="flex flex-col h-full divide-y divide-slate-200">
+      <div className="grid grid-cols-2 gap-px bg-slate-200 border-b border-slate-200">
         {[
           { label: 'DP VALUE', value: result.knapsack.totalValue, highlight: true, color: 'text-emerald-600' },
           { label: 'DP WEIGHT', value: `${result.knapsack.totalWeight} / 80 kg` },
@@ -164,10 +176,20 @@ function KnapsackTab({ result }: { result: OptimizationResult }) {
         ))}
       </div>
 
-      <div className="p-4 bg-slate-50 border-b border-slate-100">
-        <div className="scannable-header">BRUTE FORCE (2^N)</div>
-        <div className="text-[11px] font-mono text-slate-500">
-          Val: {result.knapsack.totalValue}  Wt: {result.knapsack.totalWeight} kg  Time: 1.50 ms  Matches DP: <span className="text-emerald-600 font-bold">YES</span>
+      <div className="p-4 bg-slate-50 border-b border-slate-200">
+        <div className="scannable-header italic !text-orange-600">BRUTE FORCE (2^N)</div>
+        <div className="text-[11px] font-mono text-slate-700">
+          {result.knapsack.bruteForce ? (
+            <>
+              Val: <span className="font-bold text-slate-900">{result.knapsack.bruteForce.value}</span> · 
+              Time: <span className="font-bold text-slate-900">{result.knapsack.bruteForce.time.toFixed(2)} ms</span> · 
+              Matches DP: <span className={result.knapsack.totalValue === result.knapsack.bruteForce.value ? "text-emerald-600 font-bold" : "text-red-600 font-bold"}>
+                {result.knapsack.totalValue === result.knapsack.bruteForce.value ? "YES" : "NO"}
+              </span>
+            </>
+          ) : (
+            <span className="italic">Brute-force disabled or too many items</span>
+          )}
         </div>
       </div>
 
@@ -175,8 +197,8 @@ function KnapsackTab({ result }: { result: OptimizationResult }) {
         <div className="scannable-header mb-4">ITEMS</div>
         <table className="w-full text-left">
           <thead>
-            <tr className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">
-              <th className="pb-2 font-medium">#</th>
+            <tr className="text-[10px] font-bold text-slate-600 uppercase tracking-widest border-b border-slate-200">
+              <th className="pb-2 font-bold text-slate-800">#</th>
               <th className="pb-2 font-medium">Name</th>
               <th className="pb-2 font-medium text-right">Wt</th>
               <th className="pb-2 font-medium text-right">Val</th>

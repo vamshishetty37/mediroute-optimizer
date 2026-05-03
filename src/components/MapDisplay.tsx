@@ -27,20 +27,28 @@ const createNumberIcon = (number: string | number, color: string, isDepot: boole
 interface MapDisplayProps {
   activeHospitals: Hospital[];
   route: RouteStep[];
+  hoveredHospitalId: string | null;
+  onHover: (id: string | null) => void;
+  centerNode: Hospital | null;
 }
 
-function MapBoundsHelper({ hospitals }: { hospitals: Hospital[] }) {
+function MapBoundsHelper({ hospitals, centerNode }: { hospitals: Hospital[]; centerNode: Hospital | null }) {
   const map = useMap();
   useEffect(() => {
-    if (hospitals.length > 0) {
+    if (centerNode) {
+      map.flyTo([centerNode.lat, centerNode.lng], 10, {
+        duration: 1.5,
+        easeLinearity: 0.25
+      });
+    } else if (hospitals.length > 0) {
       const bounds = L.latLngBounds(hospitals.map(h => [h.lat, h.lng]));
       map.fitBounds(bounds, { padding: [80, 80] });
     }
-  }, [hospitals, map]);
+  }, [hospitals, map, centerNode]);
   return null;
 }
 
-export default function MapDisplay({ activeHospitals, route }: MapDisplayProps) {
+export default function MapDisplay({ activeHospitals, route, hoveredHospitalId, onHover, centerNode }: MapDisplayProps) {
   const polylinePositions = useMemo(() => route.map(step => [step.hospital.lat, step.hospital.lng] as [number, number]), [route]);
   
   const [currentPosIdx, setCurrentPosIdx] = useState(0);
@@ -121,27 +129,33 @@ export default function MapDisplay({ activeHospitals, route }: MapDisplayProps) 
       zoomControl={false}
     >
       <TileLayer
-        attribution='&copy; CARTO'
-        url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       
-      <MapBoundsHelper hospitals={activeHospitals} />
+      <MapBoundsHelper hospitals={activeHospitals} centerNode={centerNode} />
 
       {activeHospitals.map(h => {
         const idx = routeIndexes.get(h.id);
         const isRevealed = isFinished || h.id === 'depot' || (idx !== undefined && idx <= currentPosIdx);
+        const isHovered = hoveredHospitalId === h.id;
         
         const label = h.id === 'depot' ? 'D' : (idx !== undefined ? idx.toString() : '');
-        const color = h.isUrgent ? '#EF4444' : (h.id === 'depot' ? '#0F172A' : '#1D4ED8');
-        const icon = createNumberIcon(label, color, h.id === 'depot');
+        const baseColor = h.isUrgent ? '#EF4444' : (h.id === 'depot' ? '#0F172A' : '#1D4ED8');
+        const color = isHovered ? '#F59E0B' : baseColor;
+        const icon = createNumberIcon(label, color, h.id === 'depot' || isHovered);
 
         return (
           <Marker 
             key={h.id} 
             position={[h.lat, h.lng]} 
             icon={icon}
-            zIndexOffset={h.id === 'depot' ? 500 : 100}
+            zIndexOffset={h.id === 'depot' || isHovered ? 500 : 100}
             opacity={isRevealed ? 1 : 0.2}
+            eventHandlers={{
+              mouseover: () => onHover(h.id),
+              mouseout: () => onHover(null),
+            }}
           >
             <Popup>
               <div className="font-bold">{h.name}</div>

@@ -19,12 +19,16 @@ import MapDisplay from './components/MapDisplay';
 import TabControl from './components/TabControl';
 import { GoogleGenAI } from '@google/genai';
 
-function StatBox({ label, value, unit }: { label: string; value: string; unit: string }) {
+function StatBox({ label, value, unit, color = "text-blue-600" }: { label: string; value: string; unit: string; color?: string }) {
   return (
-    <div className="flex flex-col border-l border-slate-100 pl-6 h-12 justify-center">
-      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">{label}</div>
-      <div className="text-2xl font-bold font-mono tracking-tighter text-blue-600">
-        {value} <span className="text-xs font-medium text-slate-300 ml-1 italic">{unit}</span>
+    <div className="flex flex-col border-r border-slate-200 px-6 py-3 h-20 justify-center group hover:bg-slate-50/50 transition-colors">
+      <div className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest mb-1 pb-1 border-b border-slate-200 w-fit">
+        {label}
+      </div>
+      <div className={`text-2xl font-black font-mono tracking-tighter ${color} flex items-baseline gap-1`}>
+        <span className="opacity-10 mr-1">—</span>
+        {value} 
+        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-tight ml-1">{unit}</span>
       </div>
     </div>
   );
@@ -38,10 +42,13 @@ export default function App() {
   const [selectedHospitalIds, setSelectedHospitalIds] = useState<string[]>(INITIAL_HOSPITALS.map(h => h.id));
   const [selectedSupplyIds, setSelectedSupplyIds] = useState<string[]>(INITIAL_SUPPLIES.map(s => s.id));
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>(INITIAL_VEHICLES[0].id);
-
+  
   const [activeTab, setActiveTab] = useState<'TSP' | 'KNAPSACK' | 'MANAGE' | 'AI'>('TSP');
   const [optimizationResult, setOptimizationResult] = useState<OptimizationResult>({ tsp: null, knapsack: null });
   const [isCalculating, setIsCalculating] = useState(false);
+  const [compareBruteForce, setCompareBruteForce] = useState(false);
+  const [hoveredHospitalId, setHoveredHospitalId] = useState<string | null>(null);
+  const [mapCenterNode, setMapCenterNode] = useState<Hospital | null>(null);
 
   const selectedVehicle = useMemo(() => vehicles.find(v => v.id === selectedVehicleId) || vehicles[0], [vehicles, selectedVehicleId]);
   const activeHospitals = useMemo(() => hospitals.filter(h => selectedHospitalIds.includes(h.id)), [hospitals, selectedHospitalIds]);
@@ -50,17 +57,17 @@ export default function App() {
   const runFullPlan = () => {
     setIsCalculating(true);
     setTimeout(() => {
-      const tsp = solveTSP(activeHospitals, hospitals.find(h => h.id === 'depot') || hospitals[0]);
-      const knapsack = solveKnapsack(activeSupplies, selectedVehicle.capacity);
+      const tsp = solveTSP(activeHospitals, hospitals.find(h => h.id === 'depot') || hospitals[0], compareBruteForce);
+      const knapsack = solveKnapsack(activeSupplies, selectedVehicle.capacity, compareBruteForce);
       setOptimizationResult({ tsp, knapsack });
       setIsCalculating(false);
     }, 500);
   };
 
-  const runTSPOny = () => {
+  const runTSPOnly = () => {
     setIsCalculating(true);
     setTimeout(() => {
-      const tsp = solveTSP(activeHospitals, hospitals.find(h => h.id === 'depot') || hospitals[0]);
+      const tsp = solveTSP(activeHospitals, hospitals.find(h => h.id === 'depot') || hospitals[0], compareBruteForce);
       setOptimizationResult(prev => ({ ...prev, tsp }));
       setIsCalculating(false);
     }, 300);
@@ -69,7 +76,7 @@ export default function App() {
   const runKnapsackOnly = () => {
     setIsCalculating(true);
     setTimeout(() => {
-      const knapsack = solveKnapsack(activeSupplies, selectedVehicle.capacity);
+      const knapsack = solveKnapsack(activeSupplies, selectedVehicle.capacity, compareBruteForce);
       setOptimizationResult(prev => ({ ...prev, knapsack }));
       setIsCalculating(false);
     }, 300);
@@ -79,31 +86,90 @@ export default function App() {
     runFullPlan();
   }, []);
 
+  const handleHospitalToggle = (id: string | 'ALL' | 'NONE') => {
+    if (id === 'ALL') {
+      setSelectedHospitalIds(hospitals.map(h => h.id));
+    } else if (id === 'NONE') {
+      setSelectedHospitalIds(['depot']);
+    } else {
+      if (id === 'depot') return;
+      setSelectedHospitalIds(prev => 
+        prev.includes(id) ? prev.filter(hId => hId !== id) : [...prev, id]
+      );
+    }
+  };
+
+  const handleSupplyToggle = (id: string | 'ALL' | 'NONE') => {
+    if (id === 'ALL') {
+      setSelectedSupplyIds(supplies.map(s => s.id));
+    } else if (id === 'NONE') {
+      setSelectedSupplyIds([]);
+    } else {
+      setSelectedSupplyIds(prev => 
+        prev.includes(id) ? prev.filter(sId => sId !== id) : [...prev, id]
+      );
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen overflow-hidden text-sm selection:bg-slate-200">
-      {/* Unified Professional Header & Stats */}
-      <header className="bg-white border-b border-slate-200 shadow-sm z-50">
-        <div className="flex items-center justify-between px-6 py-4">
+      {/* Brand & Global Controls Header */}
+      <header className="bg-white border-b border-black h-20 flex items-center justify-between px-6 z-50">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-slate-900 rounded-sm flex items-center justify-center text-white shadow-lg">
+            <Truck size={24} strokeWidth={2.5} />
+          </div>
           <div className="flex flex-col">
-            <h1 className="text-xl font-black italic tracking-tighter text-slate-900 flex items-center gap-2">
-              <Activity className="text-blue-600" size={24} strokeWidth={3} />
+            <h1 className="text-2xl font-black tracking-tight text-slate-900 leading-none">
               MEDROUTE/OPTIMIZER
             </h1>
-            <div className="flex gap-6 mt-1.5">
-              <button className="text-[10px] font-extrabold text-blue-600 uppercase tracking-[0.2em] border-b-2 border-blue-600 pb-0.5">TSP</button>
-              <button className="text-[10px] font-extrabold text-slate-300 uppercase tracking-[0.2em] hover:text-slate-500 transition-colors">0/1 KNAPSACK</button>
-              <button className="text-[10px] font-extrabold text-slate-300 uppercase tracking-[0.2em] hover:text-slate-500 transition-colors">CONTROL ROOM</button>
+            <div className="flex gap-4 mt-2">
+              <button className="text-[10px] font-mono font-bold text-slate-600 uppercase tracking-widest border-b border-slate-300 pb-0.5 hover:text-blue-600 transition-colors">TSP</button>
+              <button className="text-[10px] font-mono font-bold text-slate-600 uppercase tracking-widest border-b border-slate-300 pb-0.5 hover:text-blue-600 transition-colors">0/1 KNAPSACK</button>
+              <button className="text-[10px] font-mono font-bold text-slate-600 uppercase tracking-widest border-b border-slate-300 pb-0.5 hover:text-blue-600 transition-colors">CONTROL ROOM</button>
             </div>
           </div>
+        </div>
 
-          <div className="flex-1 max-w-4xl grid grid-cols-4 px-12">
-            <StatBox label="Total Distance" value={optimizationResult.tsp?.totalDistance.toFixed(3) || '0.000'} unit="km" />
-            <StatBox label="Value Loaded" value={optimizationResult.knapsack?.totalValue.toString() || '0'} unit="pts" />
-            <StatBox label="Weight Loaded" value={optimizationResult.knapsack?.totalWeight.toString() || '0'} unit="kg" />
-            <StatBox label="Utilization" value={Math.round(optimizationResult.knapsack?.utilization || 0).toString()} unit="%" />
+        <div className="flex items-center gap-6">
+          <div 
+            onClick={() => setCompareBruteForce(!compareBruteForce)}
+            className="flex items-center gap-3 px-4 py-2 rounded-md hover:bg-slate-50 transition-colors cursor-pointer group"
+          >
+            <div className={`w-4 h-4 rounded border-2 ${compareBruteForce ? 'border-orange-500 bg-orange-500' : 'border-slate-400 bg-transparent'} flex items-center justify-center group-hover:scale-110 transition-all`}>
+              {compareBruteForce && <div className="w-1.5 h-1.5 bg-white rounded-sm" />}
+            </div>
+            <span className={`text-[10px] font-black uppercase tracking-wider ${compareBruteForce ? 'text-orange-600' : 'text-slate-600'}`}>BRUTE-FORCE COMPARE</span>
           </div>
+
+          <button 
+            onClick={() => window.location.reload()}
+            className="flex items-center gap-2 px-5 py-2.5 border border-slate-200 rounded-md text-[11px] font-bold text-slate-600 hover:bg-slate-50 transition-all uppercase tracking-widest"
+          >
+            <RefreshCw size={14} className="opacity-60" />
+            Reload demo
+          </button>
+          
+          <button 
+            onClick={runFullPlan}
+            disabled={isCalculating}
+            className="flex items-center gap-2 px-8 py-3 bg-blue-700 hover:bg-blue-800 text-white rounded-md shadow-md shadow-blue-200 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed text-[11px] font-black uppercase tracking-[0.2em]"
+          >
+            {isCalculating ? <RefreshCw className="animate-spin" size={14} /> : <Sparkles size={14} />}
+            Run Full Plan
+          </button>
         </div>
       </header>
+
+      {/* Metrics Control Panel */}
+      <div className="bg-white border-b border-slate-300 grid grid-cols-6 shadow-sm divide-x divide-slate-200">
+        <StatBox label="Total Distance" value={optimizationResult.tsp?.totalDistance.toFixed(3) || '——'} unit="km" />
+        <StatBox label="Value Loaded" value={optimizationResult.knapsack?.totalValue.toString() || '——'} unit="pts" color="text-emerald-600" />
+        <StatBox label="Weight Loaded" value={optimizationResult.knapsack?.totalWeight.toString() || '——'} unit="kg" color="text-slate-700" />
+        <StatBox label="Utilization" value={optimizationResult.knapsack ? Math.round(optimizationResult.knapsack.utilization).toString() : '——'} unit="%" color="text-slate-900" />
+        <StatBox label="Hospitals Served" value={activeHospitals.length.toString() || '——'} unit="" color="text-slate-900" />
+        <StatBox label="2-Opt Improvement" value={optimizationResult.tsp?.improvement.toFixed(3) || '——'} unit="%" color="text-blue-600" />
+      </div>
 
       {/* Main Content Area */}
       <main className="flex-1 flex overflow-hidden">
@@ -113,20 +179,26 @@ export default function App() {
           supplies={supplies} 
           vehicles={vehicles}
           selectedHospitalIds={selectedHospitalIds}
-          setSelectedHospitalIds={setSelectedHospitalIds}
+          onHospitalToggle={handleHospitalToggle}
           selectedSupplyIds={selectedSupplyIds}
-          setSelectedSupplyIds={setSelectedSupplyIds}
+          onSupplyToggle={handleSupplyToggle}
           selectedVehicleId={selectedVehicleId}
-          setSelectedVehicleId={setSelectedVehicleId}
-          runTSPOny={runTSPOny}
+          onVehicleSelect={setSelectedVehicleId}
+          runTSPOnly={runTSPOnly}
           runKnapsackOnly={runKnapsackOnly}
+          hoveredHospitalId={hoveredHospitalId}
+          setHoveredHospitalId={setHoveredHospitalId}
+          onHospitalFocus={setMapCenterNode}
         />
 
         {/* Center: Map */}
-        <div className="flex-1 relative bg-slate-100">
+        <div className="flex-1 relative bg-slate-100 border-x border-slate-300">
           <MapDisplay 
             activeHospitals={activeHospitals} 
             route={optimizationResult.tsp?.route || []} 
+            hoveredHospitalId={hoveredHospitalId}
+            onHover={setHoveredHospitalId}
+            centerNode={mapCenterNode}
           />
         </div>
 

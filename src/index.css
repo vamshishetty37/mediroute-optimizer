@@ -25,10 +25,10 @@ body {
 
 .scannable-header {
   font-size: 11px;
-  opacity: 0.6;
+  opacity: 0.85;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  font-weight: 600;
+  font-weight: 700;
   border-bottom: 2px solid var(--ink);
   width: fit-content;
   margin-bottom: 0.5rem;
