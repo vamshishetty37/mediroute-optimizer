@@ -1,0 +1,6 @@
+{
+  "name": "MedRoute Optimizer",
+  "description": "A high-precision logistics dashboard for medical supply delivery, featuring mission-control style TSP and Knapsack optimization.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

@@ -1,0 +1,180 @@
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
+import { Hospital, RouteStep } from '../types';
+import L from 'leaflet';
+import { useEffect, useState, useMemo } from 'react';
+
+const createNumberIcon = (number: string | number, color: string, isDepot: boolean) => L.divIcon({
+  className: 'custom-number-icon',
+  html: `<div style="
+    background-color: ${color}; 
+    color: white; 
+    width: ${isDepot ? '26px' : '22px'}; 
+    height: ${isDepot ? '26px' : '22px'}; 
+    border-radius: ${isDepot ? '2px' : '50%'}; 
+    border: 2px solid white; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 800; 
+    font-size: ${isDepot ? '14px' : '11px'};
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  ">${number}</div>`,
+  iconSize: [isDepot ? 26 : 22, isDepot ? 26 : 22],
+  iconAnchor: [isDepot ? 13 : 11, isDepot ? 13 : 11],
+});
+
+interface MapDisplayProps {
+  activeHospitals: Hospital[];
+  route: RouteStep[];
+}
+
+function MapBoundsHelper({ hospitals }: { hospitals: Hospital[] }) {
+  const map = useMap();
+  useEffect(() => {
+    if (hospitals.length > 0) {
+      const bounds = L.latLngBounds(hospitals.map(h => [h.lat, h.lng]));
+      map.fitBounds(bounds, { padding: [80, 80] });
+    }
+  }, [hospitals, map]);
+  return null;
+}
+
+export default function MapDisplay({ activeHospitals, route }: MapDisplayProps) {
+  const polylinePositions = useMemo(() => route.map(step => [step.hospital.lat, step.hospital.lng] as [number, number]), [route]);
+  
+  const [currentPosIdx, setCurrentPosIdx] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const [isFinished, setIsFinished] = useState(false);
+
+  // Reset animation when route changes
+  useEffect(() => {
+    setCurrentPosIdx(0);
+    setProgress(0);
+    setIsFinished(false);
+  }, [route]);
+
+  // Handle replay event
+  useEffect(() => {
+    const handleReplay = () => {
+      setCurrentPosIdx(0);
+      setProgress(0);
+      setIsFinished(false);
+    };
+    window.addEventListener('replay-transit', handleReplay);
+    return () => window.removeEventListener('replay-transit', handleReplay);
+  }, []);
+
+  useEffect(() => {
+    if (route.length < 2 || isFinished) return;
+
+    let interval = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 1) {
+          if (currentPosIdx >= route.length - 2) {
+            setIsFinished(true);
+            return 1;
+          }
+          setCurrentPosIdx(curr => curr + 1);
+          return 0;
+        }
+        return prev + 0.08; // Swifter velocity for that professional "snap" feel
+      });
+    }, 25); // Faster tick rate for smoother motion
+
+    return () => clearInterval(interval);
+  }, [route, currentPosIdx, isFinished]);
+
+  // Create a map of hospital ID to route index
+  const routeIndexes = useMemo(() => {
+    const map = new Map<string, number>();
+    route.forEach((step, idx) => {
+      map.set(step.hospital.id, idx);
+    });
+    return map;
+  }, [route]);
+
+  // Calculate the path that has been revealed so far
+  const revealedPath = useMemo(() => {
+    if (route.length < 2) return [];
+    const path = polylinePositions.slice(0, currentPosIdx + 1);
+    
+    // Add the current animated segment
+    if (!isFinished && currentPosIdx < route.length - 1) {
+      const start = route[currentPosIdx].hospital;
+      const end = route[currentPosIdx + 1].hospital;
+      const lat = start.lat + (end.lat - start.lat) * progress;
+      const lng = start.lng + (end.lng - start.lng) * progress;
+      path.push([lat, lng]);
+    } else if (isFinished) {
+      return polylinePositions;
+    }
+    
+    return path;
+  }, [route, polylinePositions, currentPosIdx, progress, isFinished]);
+
+  return (
+    <MapContainer 
+      center={[12.9716, 77.5946]} 
+      zoom={6} 
+      className="absolute inset-0 z-0"
+      zoomControl={false}
+    >
+      <TileLayer
+        attribution='&copy; CARTO'
+        url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+      />
+      
+      <MapBoundsHelper hospitals={activeHospitals} />
+
+      {activeHospitals.map(h => {
+        const idx = routeIndexes.get(h.id);
+        const isRevealed = isFinished || h.id === 'depot' || (idx !== undefined && idx <= currentPosIdx);
+        
+        const label = h.id === 'depot' ? 'D' : (idx !== undefined ? idx.toString() : '');
+        const color = h.isUrgent ? '#EF4444' : (h.id === 'depot' ? '#0F172A' : '#1D4ED8');
+        const icon = createNumberIcon(label, color, h.id === 'depot');
+
+        return (
+          <Marker 
+            key={h.id} 
+            position={[h.lat, h.lng]} 
+            icon={icon}
+            zIndexOffset={h.id === 'depot' ? 500 : 100}
+            opacity={isRevealed ? 1 : 0.2}
+          >
+            <Popup>
+              <div className="font-bold">{h.name}</div>
+              <div className="text-xs text-slate-500">{h.city}</div>
+            </Popup>
+          </Marker>
+        );
+      })}
+
+      {polylinePositions.length > 1 && (
+        <>
+          {/* Revealed active route */}
+          <Polyline 
+            positions={revealedPath} 
+            pathOptions={{ color: '#1D4ED8', weight: 4, opacity: 1, lineJoin: 'round' }} 
+          />
+          {!isFinished && revealedPath.length > 0 && (
+            <Marker 
+              position={revealedPath[revealedPath.length - 1] as [number, number]} 
+              icon={L.divIcon({
+                className: 'transit-pulse',
+                html: `<div style="position: relative; display: flex; align-items: center; justify-content: center;">
+                         <div style="position: absolute; width: 32px; height: 32px; background-color: #3b82f6; border-radius: 9999px; opacity: 0.4; animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+                         <div style="position: relative; width: 14px; height: 14px; background-color: #1d4ed8; border-radius: 9999px; border: 2px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.2);"></div>
+                       </div>`,
+                iconSize: [32, 32],
+                iconAnchor: [16, 16]
+              })} 
+              zIndexOffset={1000} 
+            />
+          )}
+        </>
+      )}
+    </MapContainer>
+  );
+}
