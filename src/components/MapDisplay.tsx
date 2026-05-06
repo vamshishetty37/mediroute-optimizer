@@ -45,10 +45,17 @@ function MapBoundsHelper({ hospitals, centerNode }: { hospitals: Hospital[]; cen
       map.fitBounds(bounds, { padding: [80, 80] });
     }
   }, [hospitals, map, centerNode]);
+
   return null;
 }
 
-export default function MapDisplay({ activeHospitals, route, hoveredHospitalId, onHover, centerNode }: MapDisplayProps) {
+export default function MapDisplay({ 
+  activeHospitals, 
+  route, 
+  hoveredHospitalId,
+  onHover,
+  centerNode
+}: MapDisplayProps) {
   const polylinePositions = useMemo(() => route.map(step => [step.hospital.lat, step.hospital.lng] as [number, number]), [route]);
   
   const [currentPosIdx, setCurrentPosIdx] = useState(0);
@@ -69,14 +76,14 @@ export default function MapDisplay({ activeHospitals, route, hoveredHospitalId, 
       setProgress(0);
       setIsFinished(false);
     };
-    window.addEventListener('replay-transit', handleReplay);
-    return () => window.removeEventListener('replay-transit', handleReplay);
+    window.addEventListener('replay-simulation', handleReplay);
+    return () => window.removeEventListener('replay-simulation', handleReplay);
   }, []);
 
   useEffect(() => {
     if (route.length < 2 || isFinished) return;
 
-    let interval = setInterval(() => {
+    const interval = setInterval(() => {
       setProgress(prev => {
         if (prev >= 1) {
           if (currentPosIdx >= route.length - 2) {
@@ -86,9 +93,9 @@ export default function MapDisplay({ activeHospitals, route, hoveredHospitalId, 
           setCurrentPosIdx(curr => curr + 1);
           return 0;
         }
-        return prev + 0.08; // Swifter velocity for that professional "snap" feel
+        return prev + 0.1; 
       });
-    }, 25); // Faster tick rate for smoother motion
+    }, 30);
 
     return () => clearInterval(interval);
   }, [route, currentPosIdx, isFinished]);
@@ -192,3 +199,4 @@ export default function MapDisplay({ activeHospitals, route, hoveredHospitalId, 
     </MapContainer>
   );
 }
+
