@@ -240,6 +240,7 @@ export const solveKnapsack = (items: Supply[], capacity: number, runBruteForce: 
     packedItems: packedItems.reverse(),
     totalValue,
     totalWeight,
+    capacity,
     utilization: capacity > 0 ? (totalWeight / capacity) * 100 : 0,
     computeTime: performance.now() - startTime
   };

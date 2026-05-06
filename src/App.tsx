@@ -54,6 +54,20 @@ export default function App() {
   const activeHospitals = useMemo(() => hospitals.filter(h => selectedHospitalIds.includes(h.id)), [hospitals, selectedHospitalIds]);
   const activeSupplies = useMemo(() => supplies.filter(s => selectedSupplyIds.includes(s.id)), [supplies, selectedSupplyIds]);
 
+  const handleReset = () => {
+    setHospitals(INITIAL_HOSPITALS);
+    setSupplies(INITIAL_SUPPLIES);
+    setVehicles(INITIAL_VEHICLES);
+    setSelectedHospitalIds(INITIAL_HOSPITALS.map(h => h.id));
+    setSelectedSupplyIds(INITIAL_SUPPLIES.map(s => s.id));
+    setSelectedVehicleId(INITIAL_VEHICLES[0].id);
+    setOptimizationResult({ tsp: null, knapsack: null });
+    setCompareBruteForce(false);
+    setActiveTab('TSP');
+    setHoveredHospitalId(null);
+    setMapCenterNode(null);
+  };
+
   const runFullPlan = () => {
     setIsCalculating(true);
     setTimeout(() => {
@@ -84,7 +98,7 @@ export default function App() {
 
   useEffect(() => {
     runFullPlan();
-  }, []);
+  }, [selectedVehicleId, selectedSupplyIds, selectedHospitalIds, compareBruteForce]);
 
   const handleHospitalToggle = (id: string | 'ALL' | 'NONE') => {
     if (id === 'ALL') {
@@ -143,7 +157,7 @@ export default function App() {
           </div>
 
           <button 
-            onClick={() => window.location.reload()}
+            onClick={handleReset}
             className="flex items-center gap-2 px-5 py-2.5 border border-slate-200 rounded-md text-[11px] font-bold text-slate-600 hover:bg-slate-50 transition-all uppercase tracking-widest"
           >
             <RefreshCw size={14} className="opacity-60" />

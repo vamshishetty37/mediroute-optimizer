@@ -158,12 +158,17 @@ function TSPTab({ result }: { result: OptimizationResult }) {
 function KnapsackTab({ result }: { result: OptimizationResult }) {
   if (!result.knapsack) return <div className="p-8 text-center text-slate-600 italic">Run plan to see Knapsack output</div>;
 
+  const totalValue = result.knapsack.totalValue;
+  const capacity = result.knapsack.capacity;
+  const utilization = result.knapsack.utilization;
+
   return (
     <div className="flex flex-col h-full divide-y divide-slate-200">
+      {/* Metrics Grid */}
       <div className="grid grid-cols-2 gap-px bg-slate-200 border-b border-slate-200">
         {[
           { label: 'DP VALUE', value: result.knapsack.totalValue, highlight: true, color: 'text-emerald-600' },
-          { label: 'DP WEIGHT', value: `${result.knapsack.totalWeight} / 80 kg` },
+          { label: 'DP WEIGHT', value: `${result.knapsack.totalWeight} / ${result.knapsack.capacity} kg` },
           { label: 'UTILIZATION', value: `${Math.round(result.knapsack.utilization)}%`, highlight: true, color: 'text-blue-700' },
           { label: 'DP TIME', value: `${result.knapsack.computeTime.toFixed(2)} ms` },
         ].map((m, i) => (
@@ -174,6 +179,20 @@ function KnapsackTab({ result }: { result: OptimizationResult }) {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Capacity Visualization */}
+      <div className="p-4 bg-white border-b border-slate-100">
+        <div className="scannable-header mb-2 flex justify-between">
+          <span>CAPACITY LOAD</span>
+          <span className="font-mono text-[10px] text-slate-400">{Math.round(utilization)}%</span>
+        </div>
+        <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
+          <div 
+            className={`h-full transition-all duration-1000 ease-out ${utilization > 90 ? 'bg-orange-500' : 'bg-blue-600'}`}
+            style={{ width: `${utilization}%` }}
+          />
+        </div>
       </div>
 
       <div className="p-4 bg-slate-50 border-b border-slate-200">
@@ -193,32 +212,55 @@ function KnapsackTab({ result }: { result: OptimizationResult }) {
         </div>
       </div>
 
-      <div className="flex-1 p-4 overflow-x-auto">
-        <div className="scannable-header mb-4">ITEMS</div>
-        <table className="w-full text-left">
-          <thead>
-            <tr className="text-[10px] font-bold text-slate-600 uppercase tracking-widest border-b border-slate-200">
-              <th className="pb-2 font-bold text-slate-800">#</th>
-              <th className="pb-2 font-medium">Name</th>
-              <th className="pb-2 font-medium text-right">Wt</th>
-              <th className="pb-2 font-medium text-right">Val</th>
-              <th className="pb-2 font-medium text-center">Packed</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-            {result.knapsack.packedItems.map((item, i) => (
-              <tr key={i} className="hover:bg-slate-50 transition-colors">
-                <td className="py-2 text-[10px] font-mono text-slate-400">{i}</td>
-                <td className="py-2 font-medium truncate max-w-[150px]">{item.name}</td>
-                <td className="py-2 text-right data-value text-[11px]">{item.weight}</td>
-                <td className="py-2 text-right data-value text-[11px] font-bold">{item.value}</td>
-                <td className="py-2 text-center">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 mx-auto" />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="flex-1 p-4 bg-white">
+        <div className="scannable-header mb-4">PACKED INVENTORY</div>
+        <div className="space-y-4">
+          {result.knapsack.packedItems.map((item, i) => {
+            const weightWidth = (item.weight / capacity) * 100;
+            const valueWidth = (item.value / (totalValue || 1)) * 100;
+            
+            return (
+              <div key={i} className="group border-b border-slate-100 pb-4 last:border-0 hover:bg-slate-50 px-2 -mx-2 rounded transition-colors">
+                <div className="flex justify-between items-start mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded">
+                      <Package size={14} />
+                    </div>
+                    <div>
+                      <div className="font-bold text-[13px] text-slate-900 leading-none">{item.name}</div>
+                      <div className="text-[10px] text-slate-400 font-mono uppercase mt-1">{item.type}</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[11px] font-bold text-emerald-600">+{item.value} pts</div>
+                    <div className="text-[10px] font-mono text-slate-400">{item.weight} kg</div>
+                  </div>
+                </div>
+                
+                <div className="space-y-1.5 px-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[8px] font-bold text-slate-400 w-8">WGHT</span>
+                    <div className="h-1 flex-1 bg-slate-100 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-slate-400 group-hover:bg-blue-500 transition-all duration-700" 
+                        style={{ width: `${weightWidth}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[8px] font-bold text-slate-400 w-8">VAL</span>
+                    <div className="h-1 flex-1 bg-slate-100 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-emerald-300 group-hover:bg-emerald-500 transition-all duration-700" 
+                        style={{ width: `${valueWidth}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

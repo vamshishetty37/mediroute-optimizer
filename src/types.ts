@@ -54,6 +54,7 @@ export interface KnapsackResult {
   packedItems: Supply[];
   totalValue: number;
   totalWeight: number;
+  capacity: number;
   utilization: number;
   computeTime: number;
   bruteForce?: BruteForceMetric;
