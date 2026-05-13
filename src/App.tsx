@@ -70,35 +70,29 @@ export default function App() {
 
   const runFullPlan = () => {
     setIsCalculating(true);
-    setTimeout(() => {
-      const tsp = solveTSP(activeHospitals, hospitals.find(h => h.id === 'depot') || hospitals[0], compareBruteForce);
-      const knapsack = solveKnapsack(activeSupplies, selectedVehicle.capacity, compareBruteForce);
-      setOptimizationResult({ tsp, knapsack });
-      setIsCalculating(false);
-    }, 500);
+    const tsp = solveTSP(activeHospitals, hospitals.find(h => h.id === 'depot') || hospitals[0], compareBruteForce);
+    const knapsack = solveKnapsack(activeSupplies, selectedVehicle.capacity, compareBruteForce);
+    setOptimizationResult({ tsp, knapsack });
+    setIsCalculating(false);
   };
 
   const runTSPOnly = () => {
     setIsCalculating(true);
-    setTimeout(() => {
-      const tsp = solveTSP(activeHospitals, hospitals.find(h => h.id === 'depot') || hospitals[0], compareBruteForce);
-      setOptimizationResult(prev => ({ ...prev, tsp }));
-      setIsCalculating(false);
-    }, 300);
+    const tsp = solveTSP(activeHospitals, hospitals.find(h => h.id === 'depot') || hospitals[0], compareBruteForce);
+    setOptimizationResult(prev => ({ ...prev, tsp }));
+    setIsCalculating(false);
   };
 
   const runKnapsackOnly = () => {
     setIsCalculating(true);
-    setTimeout(() => {
-      const knapsack = solveKnapsack(activeSupplies, selectedVehicle.capacity, compareBruteForce);
-      setOptimizationResult(prev => ({ ...prev, knapsack }));
-      setIsCalculating(false);
-    }, 300);
+    const knapsack = solveKnapsack(activeSupplies, selectedVehicle.capacity, compareBruteForce);
+    setOptimizationResult(prev => ({ ...prev, knapsack }));
+    setIsCalculating(false);
   };
 
   useEffect(() => {
     runFullPlan();
-  }, [selectedVehicleId, selectedSupplyIds, selectedHospitalIds, compareBruteForce]);
+  }, [selectedVehicleId, selectedSupplyIds, selectedHospitalIds, compareBruteForce, hospitals, supplies, vehicles]);
 
   const handleHospitalToggle = (id: string | 'ALL' | 'NONE') => {
     if (id === 'ALL') {
@@ -179,7 +173,7 @@ export default function App() {
       <div className="bg-white border-b border-slate-300 grid grid-cols-6 shadow-sm divide-x divide-slate-200">
         <StatBox label="Total Distance" value={optimizationResult.tsp?.totalDistance.toFixed(3) || '——'} unit="km" />
         <StatBox label="Value Loaded" value={optimizationResult.knapsack?.totalValue.toString() || '——'} unit="pts" color="text-emerald-600" />
-        <StatBox label="Weight Loaded" value={optimizationResult.knapsack?.totalWeight.toString() || '——'} unit="kg" color="text-slate-700" />
+        <StatBox label="Weight Loaded" value={optimizationResult.knapsack ? `${optimizationResult.knapsack.totalWeight}/${optimizationResult.knapsack.capacity}` : '——'} unit="kg" color="text-slate-700" />
         <StatBox label="Utilization" value={optimizationResult.knapsack ? Math.round(optimizationResult.knapsack.utilization).toString() : '——'} unit="%" color="text-slate-900" />
         <StatBox label="Hospitals Served" value={activeHospitals.length.toString() || '——'} unit="" color="text-slate-900" />
         <StatBox label="2-Opt Improvement" value={optimizationResult.tsp?.improvement.toFixed(3) || '——'} unit="%" color="text-blue-600" />
@@ -231,6 +225,9 @@ export default function App() {
           setSelectedSupplyIds={setSelectedSupplyIds}
         />
       </main>
+
+      <AnimatePresence>
+      </AnimatePresence>
     </div>
   );
 }

@@ -19,7 +19,7 @@ interface Message {
   content: string;
 }
 
-export default function AICopilotTab({ result }: { result: OptimizationResult }) {
+export default function AICopilotTab({ result, allSupplies }: { result: OptimizationResult; allSupplies: Supply[] }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -45,12 +45,16 @@ export default function AICopilotTab({ result }: { result: OptimizationResult })
       // Inject context into the prompt
       const contextPrompt = `
 Current Optimization Data:
+- Vehicle Capacity: ${result.knapsack?.capacity || '0'} kg
+- All Available Supplies: ${allSupplies.map(s => `${s.name} (${s.weight}kg, ${s.value}pts)`).join(', ')}
+- Items Actually Packed: ${result.knapsack?.packedItems.map(i => i.name).join(', ') || 'N/A'}
+- Total Value Achieved: ${result.knapsack?.totalValue || '0'}
+- Weight Used: ${result.knapsack?.totalWeight || '0'} kg
+- Utilization: ${result.knapsack?.utilization.toFixed(1) || '0'}%
+
 - TSP Route: ${result.tsp?.route.map(s => s.hospital.name).join(' -> ') || 'N/A'}
 - Total Distance: ${result.tsp?.totalDistance.toFixed(2) || '0'} km
 - TSP Improvement: ${result.tsp?.improvement.toFixed(2) || '0'}%
-- Items Packed: ${result.knapsack?.packedItems.map(i => i.name).join(', ') || 'N/A'}
-- Total Value: ${result.knapsack?.totalValue || '0'}
-- Utilization: ${result.knapsack?.utilization.toFixed(1) || '0'}%
 
 User Question: ${text}
 `;
@@ -77,8 +81,8 @@ User Question: ${text}
   };
 
   const suggestions = [
+    "Explain the knapsack packing decisions: which items were chosen and why, considering their value, weight, and capacity.",
     "Explain the optimal route step-by-step.",
-    "Which supplies were loaded and why?",
     "What trade-offs did the optimizer make?",
     "How close is 2-opt to the brute-force optimum?",
   ];

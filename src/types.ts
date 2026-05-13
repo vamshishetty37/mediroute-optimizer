@@ -36,6 +36,7 @@ export interface RouteStep {
 export interface BruteForceMetric {
   distance?: number;
   value?: number;
+  weight?: number;
   time: number;
 }
 

@@ -78,6 +78,7 @@ export const refineTSP2Opt = (route: Hospital[]): { route: Hospital[]; swaps: nu
 export interface BruteForceResult {
   distance?: number;
   value?: number;
+  weight?: number;
   time: number;
 }
 
@@ -195,8 +196,13 @@ export const solveKnapsackRecursive = (items: Supply[], capacity: number): { val
     const exclude = solve(idx - 1, currentCap);
     
     const valInclude = include.v + items[idx].value;
+    const weightInclude = include.w + items[idx].weight;
+
     if (valInclude > exclude.v) {
-      return { v: valInclude, w: include.w + items[idx].weight };
+      return { v: valInclude, w: weightInclude };
+    } else if (valInclude === exclude.v) {
+      // If values are equal, prefer the one with less weight
+      return weightInclude < exclude.w ? { v: valInclude, w: weightInclude } : exclude;
     }
     return exclude;
   };
@@ -205,19 +211,53 @@ export const solveKnapsackRecursive = (items: Supply[], capacity: number): { val
   return { value: result.v, weight: result.w, time: performance.now() - startTime };
 };
 
-// 0/1 Knapsack: Dynamic Programming
-export const solveKnapsack = (items: Supply[], capacity: number, runBruteForce: boolean = false): KnapsackResult & { bruteForce?: BruteForceResult } => {
+// 0/1 Knapsack: Dynamic Programming with optional weight tie-breaking
+export const solveKnapsack = (items: Supply[], capacityInput: number, runBruteForce: boolean = false): KnapsackResult & { bruteForce?: BruteForceResult } => {
   const startTime = performance.now();
+  const capacity = Math.max(0, Math.floor(capacityInput));
   const n = items.length;
-  const dp: number[][] = Array.from({ length: n + 1 }, () => Array(capacity + 1).fill(0));
+  
+  // Ensure all weights are integers that match the DP table indices
+  // Flooring weights to match capacity flooring, prevents array index issues
+  const integerItems = items.map(item => ({
+    ...item,
+    weight: Math.floor(Number(item.weight)),
+    value: Number(item.value)
+  }));
 
+  // dp[i][w] stores the maximum value for first i items and weight w
+  const dp: number[][] = Array.from({ length: n + 1 }, () => Array(capacity + 1).fill(0));
+  // weights[i][w] stores the total weight for the maximum value configuration
+  const weights: number[][] = Array.from({ length: n + 1 }, () => Array(capacity + 1).fill(0));
+  
   for (let i = 1; i <= n; i++) {
-    const item = items[i - 1];
+    const item = integerItems[i - 1];
     for (let w = 0; w <= capacity; w++) {
       if (item.weight <= w) {
-        dp[i][w] = Math.max(dp[i - 1][w], dp[i - 1][w - item.weight] + item.value);
+        const valWith = dp[i - 1][w - item.weight] + item.value;
+        const weightWith = weights[i - 1][w - item.weight] + item.weight;
+        const valWithout = dp[i - 1][w];
+        const weightWithout = weights[i - 1][w];
+        
+        if (valWith > valWithout) {
+          dp[i][w] = valWith;
+          weights[i][w] = weightWith;
+        } else if (valWith === valWithout) {
+          // Tie-break: prefer lower weight for the same value
+          if (weightWith < weightWithout) {
+            dp[i][w] = valWith;
+            weights[i][w] = weightWith;
+          } else {
+            dp[i][w] = valWithout;
+            weights[i][w] = weightWithout;
+          }
+        } else {
+          dp[i][w] = valWithout;
+          weights[i][w] = weightWithout;
+        }
       } else {
         dp[i][w] = dp[i - 1][w];
+        weights[i][w] = weights[i - 1][w];
       }
     }
   }
@@ -225,23 +265,40 @@ export const solveKnapsack = (items: Supply[], capacity: number, runBruteForce: 
   // Backtrack to find items
   const packedItems: Supply[] = [];
   let w = capacity;
-  for (let i = n; i > 0 && w > 0; i--) {
-    if (dp[i][w] !== dp[i - 1][w]) {
-      const item = items[i - 1];
-      packedItems.push(item);
-      w -= item.weight;
+  for (let i = n; i > 0 && w >= 0; i--) {
+    const item = integerItems[i - 1];
+    
+    if (item.weight <= w) {
+      const valWith = dp[i - 1][w - item.weight] + item.value;
+      const weightWith = weights[i - 1][w - item.weight] + item.weight;
+      
+      // If the current optimal cell (dp[i][w], weights[i][w]) matches the "Include" path
+      if (dp[i][w] === valWith && weights[i][w] === weightWith) {
+        // Special check: did we prefer Include over Without?
+        // (valWith > valWithout) OR (valWith == valWithout AND weightWith < weightWithout)
+        const valWithout = dp[i - 1][w];
+        const weightWithout = weights[i - 1][w];
+        
+        const betterValue = valWith > valWithout;
+        const betterWeight = valWith === valWithout && weightWith < weightWithout;
+        
+        if (betterValue || betterWeight) {
+          packedItems.push(items[i - 1]); // Use original item reference
+          w -= item.weight;
+        }
+      }
     }
   }
 
-  const totalValue = dp[n][capacity];
-  const totalWeight = packedItems.reduce((sum, item) => sum + item.weight, 0);
+  const finalValue = dp[n][capacity];
+  const finalWeight = weights[n][capacity];
 
   const result: KnapsackResult & { bruteForce?: BruteForceResult } = {
     packedItems: packedItems.reverse(),
-    totalValue,
-    totalWeight,
+    totalValue: finalValue,
+    totalWeight: finalWeight,
     capacity,
-    utilization: capacity > 0 ? (totalWeight / capacity) * 100 : 0,
+    utilization: capacity > 0 ? (finalWeight / capacity) * 100 : 0,
     computeTime: performance.now() - startTime
   };
 
@@ -249,6 +306,7 @@ export const solveKnapsack = (items: Supply[], capacity: number, runBruteForce: 
     const bf = solveKnapsackRecursive(items, capacity);
     result.bruteForce = {
       value: bf.value,
+      weight: bf.weight,
       time: bf.time
     };
   }

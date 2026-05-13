@@ -73,7 +73,7 @@ export default function TabControl({
             setSelectedSupplyIds={setSelectedSupplyIds}
           />
         )}
-        {activeTab === 'AI' && <AICopilotTab result={result} />}
+        {activeTab === 'AI' && <AICopilotTab result={result} allSupplies={supplies} />}
       </div>
     </div>
   );
@@ -201,6 +201,7 @@ function KnapsackTab({ result }: { result: OptimizationResult }) {
           {result.knapsack.bruteForce ? (
             <>
               Val: <span className="font-bold text-slate-900">{result.knapsack.bruteForce.value}</span> · 
+              Weight: <span className="font-bold text-slate-900">{result.knapsack.bruteForce.weight} kg</span> · 
               Time: <span className="font-bold text-slate-900">{result.knapsack.bruteForce.time.toFixed(2)} ms</span> · 
               Matches DP: <span className={result.knapsack.totalValue === result.knapsack.bruteForce.value ? "text-emerald-600 font-bold" : "text-red-600 font-bold"}>
                 {result.knapsack.totalValue === result.knapsack.bruteForce.value ? "YES" : "NO"}
@@ -216,8 +217,8 @@ function KnapsackTab({ result }: { result: OptimizationResult }) {
         <div className="scannable-header mb-4">PACKED INVENTORY</div>
         <div className="space-y-4">
           {result.knapsack.packedItems.map((item, i) => {
-            const weightWidth = (item.weight / capacity) * 100;
-            const valueWidth = (item.value / (totalValue || 1)) * 100;
+            const weightWidth = capacity > 0 ? (item.weight / capacity) * 100 : 0;
+            const valueWidth = totalValue > 0 ? (item.value / totalValue) * 100 : 0;
             
             return (
               <div key={i} className="group border-b border-slate-100 pb-4 last:border-0 hover:bg-slate-50 px-2 -mx-2 rounded transition-colors">
