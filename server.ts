@@ -1,10 +1,7 @@
 import express from "express";
 import path from "path";
-import fs from "fs/promises";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
-
-const SCENARIOS_FILE = path.join(process.cwd(), "scenarios.json");
 
 async function startServer() {
   const app = express();
@@ -12,62 +9,9 @@ async function startServer() {
 
   app.use(express.json());
 
-  // Ensure scenarios.json exists
-  try {
-    await fs.access(SCENARIOS_FILE);
-  } catch {
-    await fs.writeFile(SCENARIOS_FILE, JSON.stringify([], null, 2));
-  }
-
   // API Routes
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
-  });
-
-  // Scenario Storage Routes
-  app.get("/api/scenarios", async (req, res) => {
-    try {
-      const data = await fs.readFile(SCENARIOS_FILE, "utf-8");
-      res.json(JSON.parse(data));
-    } catch (error) {
-      res.status(500).json({ error: "Failed to read scenarios" });
-    }
-  });
-
-  app.post("/api/scenarios", async (req, res) => {
-    try {
-      const { name, selectedHospitalIds, selectedSupplyIds, selectedVehicleId } = req.body;
-      const data = await fs.readFile(SCENARIOS_FILE, "utf-8");
-      const scenarios = JSON.parse(data);
-      
-      const newScenario = {
-        id: Date.now().toString(),
-        name,
-        selectedHospitalIds,
-        selectedSupplyIds,
-        selectedVehicleId,
-        createdAt: new Date().toISOString()
-      };
-      
-      scenarios.push(newScenario);
-      await fs.writeFile(SCENARIOS_FILE, JSON.stringify(scenarios, null, 2));
-      res.json(newScenario);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to save scenario" });
-    }
-  });
-
-  app.delete("/api/scenarios/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const data = await fs.readFile(SCENARIOS_FILE, "utf-8");
-      let scenarios = JSON.parse(data);
-      scenarios = scenarios.filter((s: any) => s.id !== id);
-      await fs.writeFile(SCENARIOS_FILE, JSON.stringify(scenarios, null, 2));
-      res.json({ status: "deleted" });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete scenario" });
-    }
   });
 
   // Gemini Proxy Endpoint
@@ -97,7 +41,7 @@ async function startServer() {
     }
   });
 
-  // Vite middleware for development
+  // Serve frontend
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -112,9 +56,16 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
+  // Only listen if not running as a Vercel function
+  if (process.env.VERCEL !== "1") {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  }
+
+  return app;
 }
 
-startServer();
+const appPromise = startServer();
+
+export default appPromise;

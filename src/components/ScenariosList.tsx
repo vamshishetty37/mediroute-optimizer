@@ -20,10 +20,9 @@ export default function ScenariosList({ onLoad, onClose }: ScenariosListProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchScenarios() {
+    function fetchScenarios() {
       try {
-        const response = await fetch('/api/scenarios');
-        const data = await response.json();
+        const data = JSON.parse(localStorage.getItem('medflow_scenarios') || '[]');
         setScenarios(data);
       } catch (error) {
         console.error('Fetch error', error);

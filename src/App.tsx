@@ -73,21 +73,23 @@ export default function App() {
   const saveScenario = async () => {
     setIsSaving(true);
     try {
-      const response = await fetch('/api/scenarios', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: `Optimization Plan ${new Date().toLocaleString()}`,
-          selectedHospitalIds,
-          selectedSupplyIds,
-          selectedVehicleId,
-        }),
-      });
-      if (!response.ok) throw new Error('Failed to save');
-      alert('Scenario saved to local database!');
+      const newScenario = {
+        id: Date.now().toString(),
+        name: `Optimization Plan ${new Date().toLocaleString()}`,
+        selectedHospitalIds,
+        selectedSupplyIds,
+        selectedVehicleId,
+        createdAt: new Date().toISOString()
+      };
+      
+      const existing = JSON.parse(localStorage.getItem('medflow_scenarios') || '[]');
+      existing.push(newScenario);
+      localStorage.setItem('medflow_scenarios', JSON.stringify(existing));
+      
+      alert('Scenario saved to local storage!');
     } catch (error) {
       console.error('Save error', error);
-      alert('Failed to save scenario');
+      alert('Failed to save scenario locally');
     } finally {
       setIsSaving(false);
     }
