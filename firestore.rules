@@ -1,0 +1,103 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+    
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // --- Validation Helpers ---
+    function isValidHospital(data) {
+      return data.keys().hasAll(['id', 'name', 'city', 'lat', 'lng', 'priority', 'isUrgent']) &&
+             data.keys().size() == 7 &&
+             data.id is string && data.id.size() <= 64 &&
+             data.name is string && data.name.size() <= 128 &&
+             data.city is string && data.city.size() <= 128 &&
+             data.lat is number &&
+             data.lng is number &&
+             data.priority is int && data.priority >= 1 && data.priority <= 5 &&
+             data.isUrgent is bool;
+    }
+
+    function isValidSupply(data) {
+      return data.keys().hasAll(['id', 'name', 'weight', 'value', 'type']) &&
+             data.keys().size() == 5 &&
+             data.id is string && data.id.size() <= 64 &&
+             data.name is string && data.name.size() <= 128 &&
+             data.weight is number && data.weight >= 0 &&
+             data.value is number && data.value >= 0 &&
+             data.type in ['consumable', 'equipment', 'emergency'];
+    }
+
+    function isValidVehicle(data) {
+      return data.keys().hasAll(['id', 'name', 'capacity', 'type']) &&
+             data.keys().size() == 4 &&
+             data.id is string && data.id.size() <= 64 &&
+             data.name is string && data.name.size() <= 128 &&
+             data.capacity is number && data.capacity >= 0 &&
+             data.type in ['standard_truck', 'refrigerated_van', 'emergency_motorcycle'];
+    }
+
+    function isValidScenario(data) {
+      return data.keys().hasAll(['name', 'selectedHospitalIds', 'selectedSupplyIds', 'selectedVehicleId', 'userId', 'createdAt', 'updatedAt']) &&
+             data.keys().size() == 7 &&
+             data.name is string && data.name.size() <= 256 &&
+             data.selectedHospitalIds is list && data.selectedHospitalIds.size() <= 50 &&
+             data.selectedSupplyIds is list && data.selectedSupplyIds.size() <= 100 &&
+             data.selectedVehicleId is string &&
+             data.userId == request.auth.uid &&
+             data.createdAt is timestamp &&
+             data.updatedAt is timestamp;
+    }
+
+    // --- Collections ---
+
+    match /hospitals/{hospitalId} {
+      allow read: if isSignedIn();
+      allow write: if false; // System only
+    }
+
+    match /supplies/{supplyId} {
+      allow read: if isSignedIn();
+      allow write: if false; // System only
+    }
+
+    match /vehicles/{vehicleId} {
+      allow read: if isSignedIn();
+      allow write: if false; // System only
+    }
+
+    match /scenarios/{scenarioId} {
+      allow create: if isSignedIn() && isValidId(scenarioId) && isValidScenario(incoming()) && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow get: if isOwner(existing().userId);
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow update: if isOwner(existing().userId) && 
+                      isValidScenario(incoming()) && 
+                      incoming().userId == existing().userId &&
+                      incoming().createdAt == existing().createdAt &&
+                      incoming().updatedAt == request.time;
+      allow delete: if isOwner(existing().userId);
+    }
+  }
+}

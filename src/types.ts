@@ -53,6 +53,8 @@ export interface TSPResult {
 
 export interface KnapsackResult {
   packedItems: Supply[];
+  skippedItems: Supply[];
+  infeasibleItems: Supply[];
   totalValue: number;
   totalWeight: number;
   capacity: number;

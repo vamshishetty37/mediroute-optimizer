@@ -264,6 +264,7 @@ export const solveKnapsack = (items: Supply[], capacityInput: number, runBruteFo
 
   // Backtrack to find items
   const packedItems: Supply[] = [];
+  const packedIndices = new Set<number>();
   let w = capacity;
   for (let i = n; i > 0 && w >= 0; i--) {
     const item = integerItems[i - 1];
@@ -271,30 +272,40 @@ export const solveKnapsack = (items: Supply[], capacityInput: number, runBruteFo
     if (item.weight <= w) {
       const valWith = dp[i - 1][w - item.weight] + item.value;
       const weightWith = weights[i - 1][w - item.weight] + item.weight;
+      const valWithout = dp[i - 1][w];
+      const weightWithout = weights[i - 1][w];
       
-      // If the current optimal cell (dp[i][w], weights[i][w]) matches the "Include" path
-      if (dp[i][w] === valWith && weights[i][w] === weightWith) {
-        // Special check: did we prefer Include over Without?
-        // (valWith > valWithout) OR (valWith == valWithout AND weightWith < weightWithout)
-        const valWithout = dp[i - 1][w];
-        const weightWithout = weights[i - 1][w];
-        
-        const betterValue = valWith > valWithout;
-        const betterWeight = valWith === valWithout && weightWith < weightWithout;
-        
-        if (betterValue || betterWeight) {
-          packedItems.push(items[i - 1]); // Use original item reference
-          w -= item.weight;
-        }
+      const betterValue = valWith > valWithout;
+      const betterWeight = valWith === valWithout && weightWith < weightWithout;
+      
+      if (betterValue || betterWeight) {
+        packedItems.push(items[i - 1]); // Use original item reference
+        packedIndices.add(i - 1);
+        w -= item.weight;
       }
     }
   }
+
+  // Categorize rest
+  const infeasibleItems: Supply[] = [];
+  const skippedItems: Supply[] = [];
+
+  items.forEach((item, index) => {
+    if (packedIndices.has(index)) return;
+    if (item.weight > capacity) {
+      infeasibleItems.push(item);
+    } else {
+      skippedItems.push(item);
+    }
+  });
 
   const finalValue = dp[n][capacity];
   const finalWeight = weights[n][capacity];
 
   const result: KnapsackResult & { bruteForce?: BruteForceResult } = {
     packedItems: packedItems.reverse(),
+    skippedItems,
+    infeasibleItems,
     totalValue: finalValue,
     totalWeight: finalWeight,
     capacity,

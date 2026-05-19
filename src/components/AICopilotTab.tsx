@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Sparkles, Send, Loader2, Bot, User } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
-import { OptimizationResult } from '../types';
+import { OptimizationResult, Supply } from '../types';
 
 // System prompt to configure the assistant's behavior
 const SYSTEM_INSTRUCTION = `You are the MedRoute Copilot, an AI assistant for a medical logistics optimization dashboard.
@@ -48,6 +48,8 @@ Current Optimization Data:
 - Vehicle Capacity: ${result.knapsack?.capacity || '0'} kg
 - All Available Supplies: ${allSupplies.map(s => `${s.name} (${s.weight}kg, ${s.value}pts)`).join(', ')}
 - Items Actually Packed: ${result.knapsack?.packedItems.map(i => i.name).join(', ') || 'N/A'}
+- Items Skipped (Sub-optimal or Choice): ${result.knapsack?.skippedItems.map(i => i.name).join(', ') || 'None'}
+- Items Not Feasible (Exceed Capacity): ${result.knapsack?.infeasibleItems.map(i => i.name).join(', ') || 'None'}
 - Total Value Achieved: ${result.knapsack?.totalValue || '0'}
 - Weight Used: ${result.knapsack?.totalWeight || '0'} kg
 - Utilization: ${result.knapsack?.utilization.toFixed(1) || '0'}%

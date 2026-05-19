@@ -55,3 +55,11 @@ body {
   height: 100%;
   background: #f1f5f9;
 }
+
+/* Custom Animations */
+@keyframes ping {
+  75%, 100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}

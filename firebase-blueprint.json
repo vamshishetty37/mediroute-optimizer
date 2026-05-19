@@ -1,0 +1,77 @@
+{
+  "entities": {
+    "Hospital": {
+      "title": "Hospital",
+      "description": "A delivery destination hospital.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "city": { "type": "string" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "priority": { "type": "integer" },
+        "isUrgent": { "type": "boolean" }
+      },
+      "required": ["id", "name", "city", "lat", "lng", "priority", "isUrgent"]
+    },
+    "Supply": {
+      "title": "Supply",
+      "description": "A medical supply item to be delivered.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "weight": { "type": "number" },
+        "value": { "type": "number" },
+        "type": { "enum": ["consumable", "equipment", "emergency"] }
+      },
+      "required": ["id", "name", "weight", "value", "type"]
+    },
+    "Vehicle": {
+      "title": "Vehicle",
+      "description": "An available delivery vehicle.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "capacity": { "type": "number" },
+        "type": { "enum": ["standard_truck", "refrigerated_van", "emergency_motorcycle"] }
+      },
+      "required": ["id", "name", "capacity", "type"]
+    },
+    "Scenario": {
+      "title": "Scenario",
+      "description": "A saved optimization scenario.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "selectedHospitalIds": { "type": "array", "items": { "type": "string" } },
+        "selectedSupplyIds": { "type": "array", "items": { "type": "string" } },
+        "selectedVehicleId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string" }
+      },
+      "required": ["name", "selectedHospitalIds", "selectedSupplyIds", "selectedVehicleId", "createdAt", "updatedAt", "userId"]
+    }
+  },
+  "firestore": {
+    "/hospitals/{hospitalId}": {
+      "schema": "Hospital",
+      "description": "Global collection of hospitals."
+    },
+    "/supplies/{supplyId}": {
+      "schema": "Supply",
+      "description": "Global collection of medical supplies."
+    },
+    "/vehicles/{vehicleId}": {
+      "schema": "Vehicle",
+      "description": "Global collection of delivery vehicles."
+    },
+    "/scenarios/{scenarioId}": {
+      "schema": "Scenario",
+      "description": "User-saved optimization scenarios."
+    }
+  }
+}

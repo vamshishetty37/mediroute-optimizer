@@ -52,7 +52,7 @@ export default function TabControl({
             }`}
           >
             <t.icon size={18} />
-            <span className="text-[10px] font-bold uppercase tracking-widest">{t.label}</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest leading-none mt-1">{t.label}</span>
             {activeTab === t.id && (
               <div className="absolute bottom-0 left-0 right-0 h-1 bg-blue-500" />
             )}
@@ -102,7 +102,7 @@ function TSPTab({ result }: { result: OptimizationResult }) {
         ))}
       </div>
 
-      <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+      <div className="p-4 bg-slate-50 border-b border-slate-200">
         <div>
           <div className="scannable-header italic !text-orange-600">BRUTE FORCE (EXACT)</div>
           <div className="text-[11px] font-mono text-slate-700">
@@ -121,13 +121,6 @@ function TSPTab({ result }: { result: OptimizationResult }) {
             )}
           </div>
         </div>
-        <button 
-          onClick={() => window.dispatchEvent(new CustomEvent('replay-transit'))}
-          className="px-3 py-1.5 bg-white border border-slate-200 rounded text-[10px] font-bold uppercase tracking-widest hover:bg-slate-50 flex items-center gap-1.5 shadow-sm"
-        >
-          <RefreshCw size={12} />
-          Replay Transit
-        </button>
       </div>
 
       <div className="flex-1 p-4">
@@ -151,6 +144,75 @@ function TSPTab({ result }: { result: OptimizationResult }) {
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+function InventoryItem({ item, capacity, totalValue, status }: { 
+  item: Supply, 
+  capacity: number, 
+  totalValue: number, 
+  status: 'packed' | 'infeasible' | 'skipped',
+  key?: any
+}) {
+  const weightWidth = capacity > 0 ? (item.weight / capacity) * 100 : 0;
+  const valueWidth = totalValue > 0 ? (item.value / totalValue) * 100 : 0;
+  
+  const statusColors = {
+    packed: { bg: 'bg-emerald-50', text: 'text-emerald-600', dot: 'bg-emerald-500' },
+    infeasible: { bg: 'bg-red-50', text: 'text-red-600', dot: 'bg-red-500' },
+    skipped: { bg: 'bg-slate-50', text: 'text-slate-500', dot: 'bg-slate-400' }
+  };
+
+  const colors = statusColors[status];
+
+  return (
+    <div className="group border-b border-slate-100 pb-3 last:border-0 hover:bg-slate-50 px-2 -mx-2 rounded transition-colors">
+      <div className="flex justify-between items-start mb-1.5">
+        <div className="flex items-center gap-2">
+          <div className={`p-1.5 ${colors.bg} ${colors.text} rounded`}>
+            <Package size={14} />
+          </div>
+          <div>
+            <div className={`font-bold text-[13px] leading-none ${status === 'infeasible' ? 'text-red-700' : 'text-slate-900'}`}>{item.name}</div>
+            <div className="text-[10px] text-slate-400 font-mono uppercase mt-1">{item.type}</div>
+          </div>
+        </div>
+        <div className="text-right">
+          <div className={`text-[11px] font-bold ${colors.text}`}>
+            {status === 'infeasible' ? 'X' : `+${item.value} pts`}
+          </div>
+          <div className="text-[10px] font-mono text-slate-400">{item.weight} kg</div>
+        </div>
+      </div>
+      
+      {status !== 'infeasible' && (
+        <div className="space-y-1 px-0.5">
+          <div className="flex items-center gap-2">
+            <span className="text-[8px] font-bold text-slate-400 w-8">WGHT</span>
+            <div className="h-0.5 flex-1 bg-slate-100 rounded-full overflow-hidden">
+              <div 
+                className={`h-full transition-all duration-700 ${status === 'packed' ? 'bg-blue-500' : 'bg-slate-300'}`} 
+                style={{ width: `${Math.min(100, weightWidth)}%` }}
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[8px] font-bold text-slate-400 w-8">VAL</span>
+            <div className="h-0.5 flex-1 bg-slate-100 rounded-full overflow-hidden">
+              <div 
+                className={`h-full transition-all duration-700 ${status === 'packed' ? 'bg-emerald-400' : 'bg-slate-200'}`} 
+                style={{ width: `${valueWidth}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+      {status === 'infeasible' && (
+        <div className="text-[9px] font-mono text-red-500 mt-1 uppercase italic">
+          Exceeds vehicle capacity of {capacity}kg
+        </div>
+      )}
     </div>
   );
 }
@@ -198,70 +260,71 @@ function KnapsackTab({ result }: { result: OptimizationResult }) {
       <div className="p-4 bg-slate-50 border-b border-slate-200">
         <div className="scannable-header italic !text-orange-600">BRUTE FORCE (2^N)</div>
         <div className="text-[11px] font-mono text-slate-700">
-          {result.knapsack.bruteForce ? (
-            <>
-              Val: <span className="font-bold text-slate-900">{result.knapsack.bruteForce.value}</span> · 
-              Weight: <span className="font-bold text-slate-900">{result.knapsack.bruteForce.weight} kg</span> · 
-              Time: <span className="font-bold text-slate-900">{result.knapsack.bruteForce.time.toFixed(2)} ms</span> · 
-              Matches DP: <span className={result.knapsack.totalValue === result.knapsack.bruteForce.value ? "text-emerald-600 font-bold" : "text-red-600 font-bold"}>
-                {result.knapsack.totalValue === result.knapsack.bruteForce.value ? "YES" : "NO"}
+        {result.knapsack.bruteForce ? (
+          <>
+            Val: <span className="font-bold text-slate-900">{result.knapsack.bruteForce.value}</span> · 
+            Weight: <span className="font-bold text-slate-900">{result.knapsack.bruteForce.weight} kg</span> · 
+            Time: <span className="font-bold text-slate-900">{result.knapsack.bruteForce.time.toFixed(2)} ms</span>
+            <div className="mt-1 text-[10px] text-slate-500 leading-relaxed max-w-[300px]">
+              <span className="font-bold text-slate-600 uppercase">Algorithm Note:</span> Brute Force (O(2^N)) evaluates every possible combination. The <span className="font-bold">DP (Dynamic Programming)</span> approach used here achieves the same result in O(N*W) time by reusing sub-problem solutions.
+            </div>
+            <div className="mt-1 flex items-center gap-1.5 text-[10px]">
+              Accuracy Check: <span className={result.knapsack.totalValue === result.knapsack.bruteForce.value ? "text-emerald-600 font-bold" : "text-red-600 font-bold"}>
+                {result.knapsack.totalValue === result.knapsack.bruteForce.value ? "100% ACCURATE" : "MISMATCH"}
               </span>
-            </>
-          ) : (
-            <span className="italic">Brute-force disabled or too many items</span>
-          )}
+            </div>
+          </>
+        ) : (
+          <span className="italic">Brute-force disabled (Complexity is <span className="font-bold">2^N</span>)</span>
+        )}
         </div>
       </div>
 
-      <div className="flex-1 p-4 bg-white">
-        <div className="scannable-header mb-4">PACKED INVENTORY</div>
-        <div className="space-y-4">
-          {result.knapsack.packedItems.map((item, i) => {
-            const weightWidth = capacity > 0 ? (item.weight / capacity) * 100 : 0;
-            const valueWidth = totalValue > 0 ? (item.value / totalValue) * 100 : 0;
-            
-            return (
-              <div key={i} className="group border-b border-slate-100 pb-4 last:border-0 hover:bg-slate-50 px-2 -mx-2 rounded transition-colors">
-                <div className="flex justify-between items-start mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded">
-                      <Package size={14} />
-                    </div>
-                    <div>
-                      <div className="font-bold text-[13px] text-slate-900 leading-none">{item.name}</div>
-                      <div className="text-[10px] text-slate-400 font-mono uppercase mt-1">{item.type}</div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-[11px] font-bold text-emerald-600">+{item.value} pts</div>
-                    <div className="text-[10px] font-mono text-slate-400">{item.weight} kg</div>
-                  </div>
-                </div>
-                
-                <div className="space-y-1.5 px-0.5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[8px] font-bold text-slate-400 w-8">WGHT</span>
-                    <div className="h-1 flex-1 bg-slate-100 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-slate-400 group-hover:bg-blue-500 transition-all duration-700" 
-                        style={{ width: `${weightWidth}%` }}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[8px] font-bold text-slate-400 w-8">VAL</span>
-                    <div className="h-1 flex-1 bg-slate-100 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-emerald-300 group-hover:bg-emerald-500 transition-all duration-700" 
-                        style={{ width: `${valueWidth}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+      <div className="flex-1 p-4 bg-white overflow-y-auto">
+        {/* Packed Items */}
+        <div className="scannable-header mb-4 flex items-center gap-2">
+          <div className="w-2 h-2 bg-emerald-500 rounded-full" />
+          PACKED INVENTORY
         </div>
+        <div className="space-y-4 mb-8">
+          {result.knapsack.packedItems.length > 0 ? (
+            result.knapsack.packedItems.map((item, i) => (
+              <InventoryItem key={i} item={item} capacity={capacity} totalValue={totalValue} status="packed" />
+            ))
+          ) : (
+            <div className="text-[10px] text-slate-400 italic py-2">No items packed</div>
+          )}
+        </div>
+
+        {/* Infeasible Items */}
+        {result.knapsack.infeasibleItems.length > 0 && (
+          <>
+            <div className="scannable-header mb-4 flex items-center gap-2 !text-red-600">
+              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+              NOT FEASIBLE (OVER CAPACITY)
+            </div>
+            <div className="space-y-2 mb-8 opacity-70">
+              {result.knapsack.infeasibleItems.map((item, i) => (
+                <InventoryItem key={i} item={item} capacity={capacity} totalValue={totalValue} status="infeasible" />
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Skipped Items */}
+        {result.knapsack.skippedItems.length > 0 && (
+          <>
+            <div className="scannable-header mb-4 flex items-center gap-2 !text-orange-600">
+              <div className="w-2 h-2 bg-orange-400 rounded-full" />
+              SKIPPED (SUB-OPTIMAL)
+            </div>
+            <div className="space-y-2 opacity-60">
+              {result.knapsack.skippedItems.map((item, i) => (
+                <InventoryItem key={i} item={item} capacity={capacity} totalValue={totalValue} status="skipped" />
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
