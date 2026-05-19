@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Activity, Package, Settings, Sparkles, Trash2, Plus, RefreshCw } from 'lucide-react';
 import { Hospital, Supply, Vehicle, OptimizationResult } from '../types';
 import AICopilotTab from './AICopilotTab';
-import { GoogleGenAI } from '@google/genai';
 
 interface TabControlProps {
   activeTab: 'TSP' | 'KNAPSACK' | 'MANAGE' | 'AI';
@@ -352,22 +351,28 @@ function ManageTab({ hospitals, setHospitals, supplies, setSupplies, vehicles, s
     if (!hName && !hCity) return;
     setIsResolving(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const prompt = `Return ONLY a JSON object for the location: "${hName} ${hCity}". 
       Expected format: {"lat": number, "lng": number, "city": "string"}. 
       If you can't find it precisely, give coordinates for the city center.`;
       
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: prompt,
-        config: { responseMimeType: "application/json" }
+      const response = await fetch('/api/gemini', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt,
+          responseMimeType: "application/json"
+        })
       });
+
+      if (!response.ok) throw new Error(await response.text());
       
-      const data = JSON.parse(response.text || '{}');
-      if (data.lat && data.lng) {
-        setHLat(data.lat.toString());
-        setHLng(data.lng.toString());
-        if (data.city) setHCity(data.city);
+      const data = await response.json();
+      const locationData = JSON.parse(data.text || '{}');
+      
+      if (locationData.lat && locationData.lng) {
+        setHLat(locationData.lat.toString());
+        setHLng(locationData.lng.toString());
+        if (locationData.city) setHCity(locationData.city);
       }
     } catch (error) {
       console.error("Resolution failed", error);

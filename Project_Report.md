@@ -65,7 +65,7 @@ MedRoute Optimizer addresses these through a dual-optimization engine. It provid
 -   **Cargo Precision**: Ensuring the highest-value vaccines and emergency kits are packed first.
 -   **Routing Precision**: Utilizing 2-Opt refinement to eliminate sub-optimal crossings in delivery paths.
 -   **AI Interpretability**: Bridging the gap between cold mathematical output and human decision-making via the Gemini AI Copilot.
--   **Cloud Integration**: Real-time persistence of logistics plans via Firebase, enabling secure storage and historical retrieval of optimization scenarios.
+-   **Cloud Integration**: Real-time persistence of logistics plans via a local JSON-based storage engine, enabling structured storage and historical retrieval of optimization scenarios.
 
 ---
 
@@ -123,11 +123,11 @@ The system was tested with varying inputs:
 
 ---
 
-## 6. CLOUD PERSISTENCE (FIREBASE)
-To move beyond transient sessions, the system implements a serverless cloud architecture using **Firebase**:
-- **Authentication**: Secure operator login via Google OAuth, ensuring that planning data is private to the authorized logistics officer.
-- **Data Modeling**: Scenarios are stored as structured documents in **Cloud Firestore**, containing selected hospital IDs, supply inventories, and vehicle configurations.
-- **Security Logic**: Hardened Attribute-Based Access Control (ABAC) rules prevent cross-user data leaks and protect the integrity of delivery records.
+## 6. LOCAL DATA PERSISTENCE (JSON)
+To move beyond transient sessions, the system implements a robust local storage architecture:
+- **Server-Side Storage**: Scenarios are stored as structured JSON records in `scenarios.json` on the server filesystem.
+- **RESTful API**: Custom Express.js endpoints (`/api/scenarios`) handle the CRUD operations for saving, retrieving, and deleting optimization plans.
+- **Data Modeling**: Each scenario entry encompasses a unique identifier, timestamps, selected hospital IDs, supply inventories, and vehicle configurations to ensure full state reconstruction upon reload.
 
 ---
 

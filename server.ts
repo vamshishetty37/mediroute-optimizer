@@ -1,6 +1,10 @@
 import express from "express";
 import path from "path";
+import fs from "fs/promises";
 import { createServer as createViteServer } from "vite";
+import { GoogleGenAI } from "@google/genai";
+
+const SCENARIOS_FILE = path.join(process.cwd(), "scenarios.json");
 
 async function startServer() {
   const app = express();
@@ -8,9 +12,89 @@ async function startServer() {
 
   app.use(express.json());
 
-  // API placeholders
+  // Ensure scenarios.json exists
+  try {
+    await fs.access(SCENARIOS_FILE);
+  } catch {
+    await fs.writeFile(SCENARIOS_FILE, JSON.stringify([], null, 2));
+  }
+
+  // API Routes
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
+  });
+
+  // Scenario Storage Routes
+  app.get("/api/scenarios", async (req, res) => {
+    try {
+      const data = await fs.readFile(SCENARIOS_FILE, "utf-8");
+      res.json(JSON.parse(data));
+    } catch (error) {
+      res.status(500).json({ error: "Failed to read scenarios" });
+    }
+  });
+
+  app.post("/api/scenarios", async (req, res) => {
+    try {
+      const { name, selectedHospitalIds, selectedSupplyIds, selectedVehicleId } = req.body;
+      const data = await fs.readFile(SCENARIOS_FILE, "utf-8");
+      const scenarios = JSON.parse(data);
+      
+      const newScenario = {
+        id: Date.now().toString(),
+        name,
+        selectedHospitalIds,
+        selectedSupplyIds,
+        selectedVehicleId,
+        createdAt: new Date().toISOString()
+      };
+      
+      scenarios.push(newScenario);
+      await fs.writeFile(SCENARIOS_FILE, JSON.stringify(scenarios, null, 2));
+      res.json(newScenario);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to save scenario" });
+    }
+  });
+
+  app.delete("/api/scenarios/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const data = await fs.readFile(SCENARIOS_FILE, "utf-8");
+      let scenarios = JSON.parse(data);
+      scenarios = scenarios.filter((s: any) => s.id !== id);
+      await fs.writeFile(SCENARIOS_FILE, JSON.stringify(scenarios, null, 2));
+      res.json({ status: "deleted" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete scenario" });
+    }
+  });
+
+  // Gemini Proxy Endpoint
+  app.post("/api/gemini", async (req, res) => {
+    try {
+      const { prompt, systemInstruction, responseMimeType } = req.body;
+      
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        return res.status(500).json({ error: "Gemini API key not configured on server" });
+      }
+
+      const genAI = new GoogleGenAI({ apiKey });
+      const response = await genAI.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: prompt,
+        config: { 
+          systemInstruction: systemInstruction,
+          responseMimeType: responseMimeType
+        }
+      });
+
+      res.json({ text: response.text });
+    } catch (error) {
+      console.error("Gemini API Error:", error);
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to generate content" });
+    }
   });
 
   // Vite middleware for development

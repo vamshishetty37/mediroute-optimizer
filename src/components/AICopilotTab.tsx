@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
 import { Sparkles, Send, Loader2, Bot, User } from 'lucide-react';
-import { GoogleGenAI } from '@google/genai';
 import { OptimizationResult, Supply } from '../types';
 
 // System prompt to configure the assistant's behavior
@@ -40,10 +39,12 @@ export default function AICopilotTab({ result, allSupplies }: { result: Optimiza
     setIsLoading(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      
-      // Inject context into the prompt
-      const contextPrompt = `
+      // Use the server-side proxy endpoint
+      const response = await fetch('/api/gemini', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: `
 Current Optimization Data:
 - Vehicle Capacity: ${result.knapsack?.capacity || '0'} kg
 - All Available Supplies: ${allSupplies.map(s => `${s.name} (${s.weight}kg, ${s.value}pts)`).join(', ')}
@@ -59,24 +60,24 @@ Current Optimization Data:
 - TSP Improvement: ${result.tsp?.improvement.toFixed(2) || '0'}%
 
 User Question: ${text}
-`;
-
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: contextPrompt,
-        config: {
+`,
           systemInstruction: SYSTEM_INSTRUCTION
-        }
+        })
       });
 
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      const data = await response.json();
       const assistantMessage: Message = { 
         role: 'assistant', 
-        content: response.text || "I'm sorry, I couldn't process that request." 
+        content: data.text || "I'm sorry, I couldn't process that request." 
       };
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
       console.error(error);
-      setMessages(prev => [...prev, { role: 'assistant', content: "Error connecting to AI service. Please ensure your API key is configured." }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: "Error connecting to AI service. Please ensure your API key is configured on the server." }]);
     } finally {
       setIsLoading(false);
     }

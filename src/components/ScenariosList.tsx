@@ -1,8 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { collection, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore';
-import { useFirebase } from './FirebaseProvider';
-import { FolderOpen, Clock, Trash2, ChevronRight, RefreshCw } from 'lucide-react';
+import { FolderOpen, Clock, ChevronRight, RefreshCw } from 'lucide-react';
 
 interface Scenario {
   id: string;
@@ -10,7 +7,7 @@ interface Scenario {
   selectedHospitalIds: string[];
   selectedSupplyIds: string[];
   selectedVehicleId: string;
-  createdAt: Timestamp;
+  createdAt: string;
 }
 
 interface ScenariosListProps {
@@ -19,34 +16,24 @@ interface ScenariosListProps {
 }
 
 export default function ScenariosList({ onLoad, onClose }: ScenariosListProps) {
-  const { user } = useFirebase();
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchScenarios() {
-      if (!user) return;
       try {
-        const q = query(
-          collection(db, 'scenarios'),
-          where('userId', '==', user.uid),
-          orderBy('createdAt', 'desc')
-        );
-        const querySnapshot = await getDocs(q);
-        const scenarioData: Scenario[] = [];
-        querySnapshot.forEach((doc) => {
-          scenarioData.push({ id: doc.id, ...doc.data() } as Scenario);
-        });
-        setScenarios(scenarioData);
+        const response = await fetch('/api/scenarios');
+        const data = await response.json();
+        setScenarios(data);
       } catch (error) {
-        handleFirestoreError(error, OperationType.LIST, 'scenarios');
+        console.error('Fetch error', error);
       } finally {
         setLoading(false);
       }
     }
 
     fetchScenarios();
-  }, [user]);
+  }, []);
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
@@ -57,7 +44,7 @@ export default function ScenariosList({ onLoad, onClose }: ScenariosListProps) {
               <FolderOpen size={20} className="text-blue-600" />
               SAVED PLANS
             </h2>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Cloud Storage Retrieval</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Local Storage Retrieval</p>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 font-mono font-bold">ESC</button>
         </div>
@@ -87,7 +74,7 @@ export default function ScenariosList({ onLoad, onClose }: ScenariosListProps) {
                   <div className="flex items-center gap-4 text-[10px] font-mono text-slate-500 font-bold uppercase tracking-wider">
                     <span className="flex items-center gap-1">
                       <Clock size={12} />
-                      {s.createdAt.toDate().toLocaleDateString()}
+                      {new Date(s.createdAt).toLocaleDateString()}
                     </span>
                     <span>{s.selectedHospitalIds.length} Hospitals</span>
                     <span>{s.selectedSupplyIds.length} Supplies</span>
