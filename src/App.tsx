@@ -43,7 +43,7 @@ export default function App() {
   const [selectedSupplyIds, setSelectedSupplyIds] = useState<string[]>(INITIAL_SUPPLIES.map(s => s.id));
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>(INITIAL_VEHICLES[0].id);
   
-  const [activeTab, setActiveTab] = useState<'TSP' | 'KNAPSACK' | 'MANAGE' | 'AI'>('TSP');
+  const [activeTab, setActiveTab] = useState<'TSP' | 'KNAPSACK' | 'VISUALIZE' | 'MANAGE' | 'AI'>('TSP');
   const [optimizationResult, setOptimizationResult] = useState<OptimizationResult>({ tsp: null, knapsack: null });
   const [isCalculating, setIsCalculating] = useState(false);
   const [compareBruteForce, setCompareBruteForce] = useState(false);
@@ -183,6 +183,12 @@ export default function App() {
                 className={`text-[10px] font-mono font-bold uppercase tracking-widest border-b pb-0.5 transition-colors ${activeTab === 'KNAPSACK' ? 'text-blue-600 border-blue-600' : 'text-slate-600 border-slate-300 hover:text-blue-600'}`}
               >
                 0/1 KNAPSACK
+              </button>
+              <button 
+                onClick={() => setActiveTab('VISUALIZE')}
+                className={`text-[10px] font-mono font-bold uppercase tracking-widest border-b pb-0.5 transition-colors ${activeTab === 'VISUALIZE' ? 'text-blue-600 border-blue-600' : 'text-slate-600 border-slate-300 hover:text-blue-600'}`}
+              >
+                VISUALIZER
               </button>
               <button 
                 onClick={() => setActiveTab('MANAGE')}

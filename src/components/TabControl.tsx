@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Activity, Package, Settings, Sparkles, Trash2, Plus, RefreshCw } from 'lucide-react';
+import { Activity, Package, Settings, Sparkles, Trash2, Plus, RefreshCw, BarChart3 } from 'lucide-react';
 import { Hospital, Supply, Vehicle, OptimizationResult } from '../types';
 import AICopilotTab from './AICopilotTab';
+import VisualizerTab from './VisualizerTab';
 
 interface TabControlProps {
-  activeTab: 'TSP' | 'KNAPSACK' | 'MANAGE' | 'AI';
-  setActiveTab: (tab: 'TSP' | 'KNAPSACK' | 'MANAGE' | 'AI') => void;
+  activeTab: 'TSP' | 'KNAPSACK' | 'VISUALIZE' | 'MANAGE' | 'AI';
+  setActiveTab: (tab: 'TSP' | 'KNAPSACK' | 'VISUALIZE' | 'MANAGE' | 'AI') => void;
   result: OptimizationResult;
   hospitals: Hospital[];
   setHospitals: (h: Hospital[]) => void;
@@ -34,6 +35,7 @@ export default function TabControl({
   const tabs = [
     { id: 'TSP', icon: Activity, label: 'TSP' },
     { id: 'KNAPSACK', icon: Package, label: 'KNAPSACK' },
+    { id: 'VISUALIZE', icon: BarChart3, label: 'VISUALS' },
     { id: 'MANAGE', icon: Settings, label: 'MANAGE' },
     { id: 'AI', icon: Sparkles, label: 'AI' },
   ] as const;
@@ -63,6 +65,14 @@ export default function TabControl({
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         {activeTab === 'TSP' && <TSPTab result={result} />}
         {activeTab === 'KNAPSACK' && <KnapsackTab result={result} />}
+        {activeTab === 'VISUALIZE' && (
+          <VisualizerTab 
+            result={result} 
+            hospitals={hospitals} 
+            supplies={supplies} 
+            vehicles={vehicles} 
+          />
+        )}
         {activeTab === 'MANAGE' && (
           <ManageTab 
             hospitals={hospitals} setHospitals={setHospitals}
