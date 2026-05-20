@@ -13,32 +13,65 @@ export const getDistance = (lat1: number, lng1: number, lat2: number, lng2: numb
   return R * c;
 };
 
-// TSP: Nearest Neighbor Algorithm
+// Enforce priority ordering: urgent hospitals must precede non-urgent hospitals
+export const isValidPrecedence = (r: Hospital[]): boolean => {
+  let foundNormal = false;
+  for (let i = 1; i < r.length; i++) {
+    if (!r[i].isUrgent) {
+      foundNormal = true;
+    } else if (foundNormal) {
+      // Found an urgent node after a normal node
+      return false;
+    }
+  }
+  return true;
+};
+
+// TSP: Nearest Neighbor Algorithm with Priority (Urgent first)
 export const solveTSPNearestNeighbor = (hospitals: Hospital[], startNode: Hospital): Hospital[] => {
-  const unvisited = [...hospitals].filter(h => h.id !== startNode.id);
+  const unvisitedUrgent = [...hospitals].filter(h => h.id !== startNode.id && h.isUrgent);
+  const unvisitedNormal = [...hospitals].filter(h => h.id !== startNode.id && !h.isUrgent);
   const route = [startNode];
   let current = startNode;
 
-  while (unvisited.length > 0) {
+  // 1. Visit all urgent nodes first
+  while (unvisitedUrgent.length > 0) {
     let nearestIdx = 0;
-    let minDist = getDistance(current.lat, current.lng, unvisited[0].lat, unvisited[0].lng);
+    let minDist = getDistance(current.lat, current.lng, unvisitedUrgent[0].lat, unvisitedUrgent[0].lng);
 
-    for (let i = 1; i < unvisited.length; i++) {
-      const dist = getDistance(current.lat, current.lng, unvisited[i].lat, unvisited[i].lng);
+    for (let i = 1; i < unvisitedUrgent.length; i++) {
+      const dist = getDistance(current.lat, current.lng, unvisitedUrgent[i].lat, unvisitedUrgent[i].lng);
       if (dist < minDist) {
         minDist = dist;
         nearestIdx = i;
       }
     }
 
-    current = unvisited.splice(nearestIdx, 1)[0];
+    current = unvisitedUrgent.splice(nearestIdx, 1)[0];
+    route.push(current);
+  }
+
+  // 2. Visit all normal nodes next
+  while (unvisitedNormal.length > 0) {
+    let nearestIdx = 0;
+    let minDist = getDistance(current.lat, current.lng, unvisitedNormal[0].lat, unvisitedNormal[0].lng);
+
+    for (let i = 1; i < unvisitedNormal.length; i++) {
+      const dist = getDistance(current.lat, current.lng, unvisitedNormal[i].lat, unvisitedNormal[i].lng);
+      if (dist < minDist) {
+        minDist = dist;
+        nearestIdx = i;
+      }
+    }
+
+    current = unvisitedNormal.splice(nearestIdx, 1)[0];
     route.push(current);
   }
 
   return route;
 };
 
-// TSP: 2-Opt Refinement
+// TSP: 2-Opt Refinement that maintains Priority constraint
 export const refineTSP2Opt = (route: Hospital[]): { route: Hospital[]; swaps: number } => {
   let bestRoute = [...route];
   let improved = true;
@@ -63,7 +96,7 @@ export const refineTSP2Opt = (route: Hospital[]): { route: Hospital[]; swaps: nu
           ...bestRoute.slice(j + 1)
         ];
 
-        if (calculateTotalDist(newRoute) < calculateTotalDist(bestRoute)) {
+        if (isValidPrecedence(newRoute) && calculateTotalDist(newRoute) < calculateTotalDist(bestRoute)) {
           bestRoute = newRoute;
           improved = true;
           swaps++;
@@ -82,7 +115,7 @@ export interface BruteForceResult {
   time: number;
 }
 
-// TSP: Brute Force (O(n!))
+// TSP: Brute Force (O(n!)) respecting priority sorting constraints
 export const solveTSPBruteForce = (hospitals: Hospital[], startNode: Hospital): { route: Hospital[]; totalDistance: number; time: number } => {
   const startTime = performance.now();
   const others = hospitals.filter(h => h.id !== startNode.id);
@@ -106,13 +139,22 @@ export const solveTSPBruteForce = (hospitals: Hospital[], startNode: Hospital): 
   const permute = (arr: Hospital[], m: Hospital[] = []) => {
     if (arr.length === 0) {
       const fullRoute = [startNode, ...m];
-      const dist = calculateTotalDist(fullRoute);
-      if (dist < minDistance) {
-        minDistance = dist;
-        bestRoute = fullRoute;
+      if (isValidPrecedence(fullRoute)) {
+        const dist = calculateTotalDist(fullRoute);
+        if (dist < minDistance) {
+          minDistance = dist;
+          bestRoute = fullRoute;
+        }
       }
     } else {
       for (let i = 0; i < arr.length; i++) {
+        // Early prune: cannot place a normal node if there are unvisited urgent nodes remaining
+        const currentIsNormal = !arr[i].isUrgent;
+        const hasUrgentLeft = arr.some(h => h.isUrgent);
+        if (currentIsNormal && hasUrgentLeft) {
+          continue;
+        }
+
         const curr = arr.slice();
         const next = curr.splice(i, 1);
         permute(curr.slice(), m.concat(next));

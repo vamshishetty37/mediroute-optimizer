@@ -486,20 +486,22 @@ function ManageTab({ hospitals, setHospitals, supplies, setSupplies, vehicles, s
                 {[1, 2, 3, 4, 5].map(p => <option key={p} value={p}>Priority {p}</option>)}
               </select>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 col-span-2">
               <input type="checkbox" id="urgent" checked={hUrgent} onChange={e => setHUrgent(e.target.checked)} className="accent-red-500" />
               <label htmlFor="urgent" className="text-xs text-slate-600 font-medium">Flag as Urgent</label>
             </div>
-            <button onClick={addHospital} className="w-full py-2 bg-blue-700 hover:bg-blue-800 text-white font-bold rounded flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm">
+            <button onClick={addHospital} className="w-full py-2 bg-blue-700 hover:bg-blue-800 text-white font-bold rounded flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm col-span-2">
               <Plus size={16} /> Add hospital
             </button>
             
-            <div className="mt-4 divide-y divide-slate-100">
+            <div className="mt-4 divide-y divide-slate-100 col-span-2">
               {hospitals.map(h => (
                 <div key={h.id} className="py-2.5 flex items-center justify-between group">
                   <div className="min-w-0">
-                    <div className="font-bold truncate text-[13px]">{h.name} <span className="text-slate-400 font-normal ml-1">· {h.city}</span></div>
-                    {h.isUrgent && <span className="text-[9px] text-red-500 font-bold uppercase tracking-widest">Urgent</span>}
+                    <div className="font-bold truncate text-[13px]">
+                      {h.name} <span className="text-slate-400 font-normal ml-1">· {h.city}</span>
+                      {h.isUrgent && <span className="ml-2 text-[9px] text-red-500 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded font-bold uppercase tracking-widest">Urgent</span>}
+                    </div>
                   </div>
                   {h.id !== 'depot' && (
                     <button onClick={() => removeHospital(h.id)} className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-all p-1.5">

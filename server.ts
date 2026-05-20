@@ -1,7 +1,10 @@
 import express from "express";
 import path from "path";
+import fs from "fs/promises";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
+
+const SCENARIOS_FILE = path.join(process.cwd(), "scenarios.json");
 
 async function startServer() {
   const app = express();
@@ -9,9 +12,76 @@ async function startServer() {
 
   app.use(express.json());
 
+  // Ensure scenarios.json exists
+  try {
+    await fs.access(SCENARIOS_FILE);
+  } catch {
+    try {
+      await fs.writeFile(SCENARIOS_FILE, JSON.stringify([], null, 2));
+    } catch (e) {
+      console.warn("Could not create scenarios.json", e);
+    }
+  }
+
   // API Routes
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
+  });
+
+  // Scenario Storage Routes
+  app.get("/api/scenarios", async (req, res) => {
+    try {
+      const data = await fs.readFile(SCENARIOS_FILE, "utf-8");
+      res.json(JSON.parse(data));
+    } catch (error) {
+      res.status(500).json({ error: "Failed to read scenarios" });
+    }
+  });
+
+  app.post("/api/scenarios", async (req, res) => {
+    try {
+      const { name, selectedHospitalIds, selectedSupplyIds, selectedVehicleId } = req.body;
+      let scenarios = [];
+      try {
+        const data = await fs.readFile(SCENARIOS_FILE, "utf-8");
+        scenarios = JSON.parse(data);
+      } catch (e) {
+        // file doesn't exist or is invalid
+      }
+      
+      const newScenario = {
+        id: Date.now().toString(),
+        name,
+        selectedHospitalIds,
+        selectedSupplyIds,
+        selectedVehicleId,
+        createdAt: new Date().toISOString()
+      };
+      
+      scenarios.push(newScenario);
+      await fs.writeFile(SCENARIOS_FILE, JSON.stringify(scenarios, null, 2));
+      res.json(newScenario);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to save scenario" });
+    }
+  });
+
+  app.delete("/api/scenarios/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      let scenarios = [];
+      try {
+        const data = await fs.readFile(SCENARIOS_FILE, "utf-8");
+        scenarios = JSON.parse(data);
+      } catch (e) {
+        // ignore
+      }
+      scenarios = scenarios.filter((s: any) => s.id !== id);
+      await fs.writeFile(SCENARIOS_FILE, JSON.stringify(scenarios, null, 2));
+      res.json({ status: "deleted" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete scenario" });
+    }
   });
 
   // Gemini Proxy Endpoint

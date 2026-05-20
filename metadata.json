@@ -2,5 +2,5 @@
   "name": "MedRoute Optimizer",
   "description": "Professional medical supply chain optimization platform using TSP and 0/1 Knapsack algorithms for emergency logistics.",
   "requestFramePermissions": [],
-  "majorCapabilities": []
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

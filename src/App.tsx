@@ -9,7 +9,7 @@
  */
 
 import { useState, useMemo, useEffect } from 'react';
-import { Truck, Activity, Package, Map as MapIcon, ChevronRight, Play, RefreshCw, AlertCircle, Sparkles, Save, FolderOpen } from 'lucide-react';
+import { Truck, Activity, Package, Map as MapIcon, ChevronRight, Play, RefreshCw, AlertCircle, Sparkles, LogIn, LogOut, Save, FolderOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Hospital, Supply, Vehicle, OptimizationResult } from './types';
 import { INITIAL_HOSPITALS, INITIAL_SUPPLIES, INITIAL_VEHICLES } from './constants';
@@ -73,20 +73,26 @@ export default function App() {
   const saveScenario = async () => {
     setIsSaving(true);
     try {
-      const newScenario = {
-        id: Date.now().toString(),
+      const scenarioData = {
         name: `Optimization Plan ${new Date().toLocaleString()}`,
         selectedHospitalIds,
         selectedSupplyIds,
         selectedVehicleId,
-        createdAt: new Date().toISOString()
       };
       
-      const existing = JSON.parse(localStorage.getItem('medflow_scenarios') || '[]');
-      existing.push(newScenario);
-      localStorage.setItem('medflow_scenarios', JSON.stringify(existing));
-      
-      alert('Scenario saved to local storage!');
+      const response = await fetch('/api/scenarios', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(scenarioData),
+      });
+
+      if (response.ok) {
+        alert('Scenario saved to server!');
+      } else {
+        alert('Failed to save plan to server');
+      }
     } catch (error) {
       console.error('Save error', error);
       alert('Failed to save scenario locally');
